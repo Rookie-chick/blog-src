@@ -48,6 +48,10 @@
     spinY: 0,
     spinDirty: true,
     pred: null,
+    superPockets: [],   // 超级杆算出的"必进袋口"（空数组 = 无高亮）
+    superFocus: null,   // 当前瞄准方向命中的那个，画完整路线
+    superOn: false,     // 当前是否挂着外挂杆
+    superCount: -1,     // 上一次的高亮数量，用来判断要不要刷新提示
     lastTs: 0,
     strike: 0,       // 击球瞬间球杆前推动画剩余时间
     strikeFrom: 0    // 前推起始拉距
@@ -81,6 +85,11 @@
       el.hint.textContent = '移动鼠标摆放白球 · 点击确认位置';
     } else if (S.phase === 'ai') {
       el.hint.textContent = '电脑瞄准中，看它的杆';
+    } else if (S.superOn) {
+      el.hint.textContent = S.superPockets.length
+        ? '超级杆 · ' + S.superPockets.length +
+          ' 个袋口必进（青圈）· 力度不足会变橙圈'
+        : '超级杆 · 当前没有必进的袋口，换个角度或先把球做开';
     } else if (S.aimNudge !== 0) {
       el.hint.textContent = '微调 ' + nudgeText() +
         ' · 滚轮 ±0.3°（Shift ±0.05°）· 按 R 归零';
@@ -516,7 +525,7 @@
   /* ---------------- 球杆选择 ---------------- */
 
   // 与 render.js 的 CUE_SKINS.shaft 保持一致，卡片色块就是台上那根杆的颜色
-  var SWATCH = ['#e2c48d', '#424750', '#f2d08a'];
+  var SWATCH = ['#e2c48d', '#424750', '#f2d08a', '#8ef2ff'];
 
   function buildCueCards() {
     var host = document.getElementById('cueCards');
@@ -525,20 +534,25 @@
       (function (idx) {
         var cue = C.CUES[idx];
         var card = document.createElement('div');
-        card.className = 'cue-card' + (S.cueIdx === idx ? ' active' : '');
+        card.className = 'cue-card' + (S.cueIdx === idx ? ' active' : '') +
+          (cue.cheat ? ' cheat' : '');
         card.innerHTML =
           '<div class="cue-swatch" style="background:linear-gradient(90deg,' +
             SWATCH[idx] + ' 0 55%, #3f2614 55% 100%)"></div>' +
           '<div class="cue-meta">' +
-            '<div class="cue-name">' + cue.name + '</div>' +
-            '<div class="cue-desc">力度 ×' + cue.power.toFixed(1) + ' · 准线 ' +
-              (idx === 0 ? '基础' : idx === 1 ? '撞库反弹' : '双段反弹') + '</div>' +
+            '<div class="cue-name">' + cue.name +
+              (cue.cheat ? '<span class="cheat-tag">外挂</span>' : '') + '</div>' +
+            '<div class="cue-desc">' + cue.desc + '</div>' +
           '</div>' +
           '<div class="cue-star">' + cue.star + '</div>';
         card.addEventListener('click', function () {
           S.cueIdx = idx;
           buildCueCards();
-          setMsg('已换 ' + cue.name);
+          if (cue.cheat) {
+            setMsg('超级杆已开 · 青圈袋口必进（橙圈说明力度不够）');
+          } else {
+            setMsg('已换 ' + cue.name);
+          }
         });
         host.appendChild(card);
       })(i);
@@ -572,6 +586,27 @@
     }
     S.pred = aiming ? BK.aim.predict(world, S.aimAngle, C.CUES[S.cueIdx].depth) : null;
 
+    // 超级杆：每帧重算必进袋口。
+    // 只在"轮到你瞄准/蓄力"时算——电脑回合、球在滚动、自由球摆位时一律清空，
+    // 换回普通杆后 cueCfg.cheat 为假，这里也会自然清掉所有高亮。
+    var cueCfg = C.CUES[S.cueIdx];
+    var superOn = !!cueCfg.cheat &&
+      (S.phase === 'aim' || S.phase === 'charging') && !S.ballInHand;
+    if (superOn) {
+      S.superPockets = BK.superCue.find(world, cueCfg);
+      S.superFocus = BK.superCue.focused(S.superPockets, S.aimAngle);
+    } else if (S.superPockets.length || S.superFocus || S.superOn) {
+      S.superPockets = [];
+      S.superFocus = null;
+    }
+
+    // 高亮数量变了才刷提示，避免每帧改 DOM
+    if (superOn !== S.superOn || S.superPockets.length !== S.superCount) {
+      S.superOn = superOn;
+      S.superCount = S.superPockets.length;
+      updateHint();
+    }
+
     // 球杆拉距：蓄力时后退；AI 瞄准时小幅预备；击球瞬间冲向白球
     var pull = 0;
     if (S.charging) pull = S.power * 26;
@@ -594,7 +629,11 @@
       showCue: showCue,
       cueSkin: C.CUES[S.cueIdx].skin,
       ballInHand: S.phase === 'ballinhand',
-      ballInHandValid: validCuePos(cue.x, cue.y)
+      ballInHandValid: validCuePos(cue.x, cue.y),
+      superPockets: S.superPockets,
+      superFocus: S.superFocus,
+      charging: S.charging,
+      power: S.power
     });
 
     var pct = Math.round(S.power * 100);

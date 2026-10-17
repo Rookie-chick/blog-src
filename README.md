@@ -266,6 +266,26 @@ python deploy.py 用户名/仓库名 --keep-deployments 5   # 留最近 5 条
 python deploy.py 用户名/仓库名 --keep-deployments 0   # 不清理
 ```
 
+### 源码也一起备份
+
+`config.json` 里写一行：
+
+```json
+"source_repo": "用户名/blog-src"
+```
+
+之后每次部署会**顺带把源码推到那个仓库**（`build.py`、`posts/*.md`、`assets/`、
+`images/` 等），`token.txt`、`dist/`、`.build-cache/` 自动排除。
+换台电脑 `git clone` 下来就能直接 `preview.bat` 干活。
+
+```bash
+--no-source                 这次只发站点，不备份源码
+--source-repo 用户名/xxx     临时指定另一个源码仓库
+```
+
+> 源码仓库第一次推送时如果还是空的，脚本会自动建一个占位提交
+> —— 因为 GitHub 对空仓库的 `git/blobs` 接口会返回 `409 Git Repository is empty`。
+
 ### Cloudflare Pages
 
 - 构建命令：`python build.py`

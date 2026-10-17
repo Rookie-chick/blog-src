@@ -204,6 +204,29 @@ html, body {
   #hud { gap: 8px; }
 }
 
+/* ---------- 超级杆（外挂模式） ---------- */
+.cue-card.cheat { border-color: rgba(67, 232, 255, .42); }
+.cue-card.cheat:hover { background: rgba(67, 232, 255, .08); }
+.cue-card.cheat.active {
+  border-color: #43e8ff;
+  background: rgba(67, 232, 255, .14);
+  box-shadow: 0 0 0 1px rgba(67, 232, 255, .35), 0 0 18px rgba(67, 232, 255, .18);
+}
+.cue-card.cheat .cue-star { color: #43e8ff; }
+.cheat-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 15px;
+  font-weight: 500;
+  border-radius: 3px;
+  background: rgba(67, 232, 255, .18);
+  color: #43e8ff;
+  vertical-align: 1px;
+  letter-spacing: 0;
+}
+
 /* ---------- 返回博客（myblog 集成时追加） ---------- */
 .back-home {
   margin-top: 18px;

@@ -309,11 +309,12 @@ window.BK = window.BK || {};
 
   /* ---------------- 球杆 ---------------- */
 
-  // 球杆皮肤：0 练习木杆 / 1 进阶碳杆 / 2 大师金杆
+  // 球杆皮肤：0 练习木杆 / 1 进阶碳杆 / 2 大师金杆 / 3 超级杆
   var CUE_SKINS = [
     { shaft: '#e2c48d', butt: '#3f2614', tip: '#2f5f8a', ring: '#8a6a3b' },
     { shaft: '#424750', butt: '#1c1f24', tip: '#3784d4', ring: '#9aa7b5' },
-    { shaft: '#f2d08a', butt: '#2b1708', tip: '#a83224', ring: '#ffd24d' }
+    { shaft: '#f2d08a', butt: '#2b1708', tip: '#a83224', ring: '#ffd24d' },
+    { shaft: '#8ef2ff', butt: '#10222e', tip: '#ff4d6d', ring: '#43e8ff', glow: '#43e8ff' }
   ];
 
   Renderer.prototype.drawCue = function (ctx, cx, cy, angle, pull, skin) {
@@ -326,6 +327,22 @@ window.BK = window.BK || {};
     var x0 = cx + ux * gap, y0 = cy + uy * gap;
     var xm = cx + ux * (gap + len * 0.46), ym = cy + uy * (gap + len * 0.46);
     var x1 = cx + ux * (gap + len), y1 = cy + uy * (gap + len);
+
+    // 超级杆：整根杆带青色辉光，一眼看出这是外挂
+    if (sk.glow) {
+      ctx.save();
+      ctx.shadowColor = sk.glow;
+      ctx.shadowBlur = 16;
+      ctx.strokeStyle = sk.glow;
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = w * 2.4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // 杆影
     ctx.save();
@@ -517,6 +534,118 @@ window.BK = window.BK || {};
     }
   };
 
+  /* ---------------- 超级杆：必进袋口高亮 ---------------- */
+
+  // list 来自 BK.superCue.find()，每个元素代表"这个袋口有必然进球路线"。
+  // 青色 = 当前力度够；橙色 = 路线成立但你现在的力度推不到。
+  Renderer.prototype.drawSuperPockets = function (ctx, list, opts) {
+    if (!list || list.length === 0) return;
+    opts = opts || {};
+    var pulse = 1 + Math.sin(Date.now() * 0.006) * 0.13;
+    var i, it, pk, enough, col;
+
+    for (i = 0; i < list.length; i++) {
+      it = list[i];
+      pk = it.pocket;
+      enough = !opts.charging || (opts.power || 0) >= it.powerNeeded - 0.02;
+      col = enough ? '67, 232, 255' : '255, 176, 32';
+
+      ctx.save();
+
+      // 袋口底色：纯黑袋口上必须有填充才看得出高亮
+      ctx.fillStyle = 'rgba(' + col + ', .20)';
+      ctx.beginPath();
+      ctx.arc(pk.x, pk.y, C.POCKET_R * 0.92 * pulse, 0, PI * 2);
+      ctx.fill();
+
+      // 主光环
+      ctx.strokeStyle = 'rgba(' + col + ', .95)';
+      ctx.lineWidth = 2.4;
+      ctx.shadowColor = 'rgba(' + col + ', .85)';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(pk.x, pk.y, C.POCKET_R * 0.86 * pulse, 0, PI * 2);
+      ctx.stroke();
+
+      // 内环：两条环反向呼吸，动静比单环明显
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(pk.x, pk.y, C.POCKET_R * 0.56 / pulse, 0, PI * 2);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // 当前瞄准方向命中的那个袋口：把"白球→幽灵球→本球→袋口"整条路线画出来
+    var f = opts.focus;
+    if (!f || !opts.cue) return;
+
+    var cue = opts.cue;
+    ctx.save();
+    ctx.setLineDash([5, 5]);
+    ctx.lineDashOffset = -(Date.now() * 0.02) % 40;
+    ctx.strokeStyle = 'rgba(67, 232, 255, .85)';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+
+    // 白球 → 幽灵球
+    ctx.beginPath();
+    ctx.moveTo(cue.x, cue.y);
+    ctx.lineTo(f.ghost.x, f.ghost.y);
+    ctx.stroke();
+
+    // 本球 → 袋口
+    ctx.strokeStyle = 'rgba(67, 232, 255, .65)';
+    ctx.beginPath();
+    ctx.moveTo(f.ball.x, f.ball.y);
+    ctx.lineTo(f.pocket.x, f.pocket.y);
+    ctx.stroke();
+    ctx.restore();
+
+    // 幽灵球虚影
+    ctx.save();
+    ctx.fillStyle = 'rgba(67, 232, 255, .16)';
+    ctx.strokeStyle = 'rgba(67, 232, 255, .9)';
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.arc(f.ghost.x, f.ghost.y, C.BALL_R, 0, PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // 本球去向上画个实心箭头，指向袋口
+    var adx = f.pocket.x - f.ball.x, ady = f.pocket.y - f.ball.y;
+    var al = Math.hypot(adx, ady) || 1;
+    adx /= al; ady /= al;
+    var startX = f.ball.x + adx * (C.BALL_R + 4);
+    var startY = f.ball.y + ady * (C.BALL_R + 4);
+    var len = Math.min(46, al - C.BALL_R * 2);
+    if (len > 8) {
+      var head = 8;
+      ctx.save();
+      ctx.translate(startX, startY);
+      ctx.rotate(Math.atan2(ady, adx));
+      ctx.strokeStyle = 'rgba(67, 232, 255, .92)';
+      ctx.fillStyle = 'rgba(67, 232, 255, .92)';
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(len - head, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(len, 0);
+      ctx.lineTo(len - head, -head * 0.55);
+      ctx.lineTo(len - head, head * 0.55);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  };
+
   /* ---------------- 击球点面板 ---------------- */
 
   Renderer.prototype.drawSpinPad = function (ctx, sx, sy) {
@@ -574,6 +703,16 @@ window.BK = window.BK || {};
     this.drawFx(ctx);
 
     if (view.showAim && view.pred && view.canShoot) this.drawAim(ctx, view.pred);
+
+    // 超级杆的必进袋口高亮：画在球之上、白球之下，既有存在感又不挡视线
+    if (view.superPockets && view.superPockets.length) {
+      this.drawSuperPockets(ctx, view.superPockets, {
+        focus: view.superFocus,
+        cue: world.cue(),
+        charging: view.charging,
+        power: view.power
+      });
+    }
 
     // 白球（自由球时跟随鼠标）
     var cue = world.cue();
