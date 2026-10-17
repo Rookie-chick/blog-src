@@ -14,6 +14,14 @@
     --no-build          跳过构建，直接推送已有的 dist/
     --out dist          指定产物目录
     --token xxxxx       直接给 token（不推荐，会被写进命令行历史）
+    --keep-deployments  只保留最近 N 条部署记录，默认 1（0 = 不清理）
+
+源码备份:
+    config.json 里写了 "source_repo": "用户名/blog-src" 的话，
+    每次部署会顺带把源码（build.py / posts/*.md / assets / images）推到那个仓库。
+    token.txt、dist/、.build-cache/ 会被自动排除。
+        --no-source             这次不推源码
+        --source-repo 用户名/x  临时指定源码仓库，覆盖配置
 
 Token 权限: 需要 repo（私有仓库）或 public_repo（公开仓库）。
 """
@@ -181,6 +189,136 @@ def push(owner_repo, dist, branch):
     return commit['sha']
 
 
+# --------------------------------------------------------------------------
+# 源码备份：把整个项目（不含产物和令牌）推到另一个仓库
+# --------------------------------------------------------------------------
+SOURCE_SKIP_DIRS = {'dist', 'docs', '.build-cache', '__pycache__', '.git',
+                    '.venv', '.idea', 'node_modules'}
+SOURCE_SKIP_FILES = {'token.txt', 'token', '.env'}
+SOURCE_SKIP_EXT = {'.pyc', '.pyo', '.log', '.tmp', '.bak'}
+
+
+def load_site_config():
+    try:
+        with open(os.path.join(ROOT, 'config.json'), encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def collect_source(root):
+    """列出要备份的源码文件 —— 产物、缓存、令牌一律排除"""
+    out = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in SOURCE_SKIP_DIRS]
+        for fn in filenames:
+            if fn in SOURCE_SKIP_FILES:
+                continue
+            if os.path.splitext(fn)[1].lower() in SOURCE_SKIP_EXT:
+                continue
+            full = os.path.join(dirpath, fn)
+            out.append((os.path.relpath(full, root).replace('\\', '/'), full))
+    out.sort()
+    # 兜底：绝不能让令牌文件混进去
+    leak = [r for r, _ in out if 'token' in r.lower() or r.lower().endswith('.env')]
+    if leak:
+        raise SystemExit('源码里混进了疑似令牌文件，已中止：%s' % leak)
+    return out
+
+
+def ensure_repo(owner_repo, private=False, description=''):
+    """仓库不存在就建一个（空仓库没法直接推 blob，后面还要占位提交）"""
+    info = api('GET', '/repos/' + owner_repo, allow_404=True)
+    if info:
+        return info
+    owner, _, name = owner_repo.partition('/')
+    print('    源码仓库不存在，创建%s仓库 %s ...' % ('私有' if private else '公开', owner_repo))
+    return api('POST', '/user/repos', {
+        'name': name,
+        'private': private,
+        'auto_init': False,
+        'description': description,
+        'has_wiki': False,
+        'has_projects': False,
+        'has_issues': False,
+    })
+
+
+def push_source(owner_repo, branch='main'):
+    """把源码推到备份仓库。不含 dist/、.build-cache/、token.txt。"""
+    print('\n[*] 备份源码到 %s ...' % owner_repo)
+    ensure_repo(owner_repo, description='个人博客源码：静态站点生成器 + Markdown 原文')
+    time.sleep(1)
+
+    files = collect_source(ROOT)
+    total = sum(os.path.getsize(f) for _, f in files)
+    print('    %d 个文件，%.1f MB' % (len(files), total / 1024.0 / 1024.0))
+
+    # 空仓库连 git/refs 都会 409 "Git Repository is empty"，得先塞个占位提交
+    try:
+        has_ref = bool(api('GET', '/repos/%s/git/ref/heads/%s' % (owner_repo, branch)))
+    except SystemExit:
+        has_ref = False
+    if not has_ref:
+        print('    空仓库，先建占位提交 ...')
+        api('PUT', '/repos/%s/contents/.gitkeep' % owner_repo,
+            {'message': 'init', 'content': 'Cg=='})
+        time.sleep(2)
+
+    cache_file = os.path.join(ROOT, '.build-cache',
+                              'deploy-%s-%s.json' % (owner_repo.split('/')[-1], branch))
+    os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+    cache = {}
+    if os.path.exists(cache_file):
+        try:
+            cache = json.loads(open(cache_file, encoding='utf-8').read())
+        except Exception:
+            cache = {}
+
+    def save_cache():
+        with open(cache_file, 'w', encoding='utf-8', newline='\n') as f:
+            json.dump(cache, f)
+
+    tree, reused = [], 0
+    for i, (rel, full) in enumerate(files, 1):
+        st = os.stat(full)
+        key = '%d-%d' % (st.st_size, int(st.st_mtime))
+        hit = cache.get(rel)
+        if hit and hit.get('k') == key and hit.get('sha'):
+            tree.append({'path': rel, 'mode': '100644', 'type': 'blob', 'sha': hit['sha']})
+            reused += 1
+            continue
+        with open(full, 'rb') as f:
+            blob = api('POST', '/repos/%s/git/blobs' % owner_repo, {
+                'content': base64.b64encode(f.read()).decode('ascii'),
+                'encoding': 'base64',
+            })
+        tree.append({'path': rel, 'mode': '100644', 'type': 'blob', 'sha': blob['sha']})
+        cache[rel] = {'k': key, 'sha': blob['sha']}
+        if i % 20 == 0 or i == len(files):
+            print('      %d/%d' % (i, len(files)))
+            save_cache()
+    save_cache()
+
+    new_tree = api('POST', '/repos/%s/git/trees' % owner_repo, {'tree': tree})
+    ref = api('GET', '/repos/%s/git/ref/heads/%s' % (owner_repo, branch), allow_404=True)
+    commit = api('POST', '/repos/%s/git/commits' % owner_repo, {
+        'message': 'source: %s' % time.strftime('%Y-%m-%d %H:%M:%S'),
+        'tree': new_tree['sha'],
+        'parents': [ref['object']['sha']] if ref else [],
+    })
+    if ref:
+        api('PATCH', '/repos/%s/git/refs/heads/%s' % (owner_repo, branch),
+            {'sha': commit['sha'], 'force': True})
+    else:
+        api('POST', '/repos/%s/git/refs' % owner_repo,
+            {'ref': 'refs/heads/' + branch, 'sha': commit['sha']})
+
+    print('    源码已备份：commit %s（%d 个文件，复用 %d）' % (
+        commit['sha'][:7], len(files), reused))
+    return commit['sha']
+
+
 def prune_deployments(owner_repo, keep=1, new_sha=''):
     """
     清掉多余的 Pages 部署记录，只保留最近 keep 条。
@@ -229,6 +367,9 @@ def main():
     ap.add_argument('--token', default='')
     ap.add_argument('--keep-deployments', type=int, default=1, metavar='N',
                     help='部署成功后只保留最近 N 条部署记录，默认 1（填 0 表示不清理）')
+    ap.add_argument('--source-repo', default='', metavar='用户名/仓库名',
+                    help='额外把源码备份到这个仓库（覆盖 config.json 里的 source_repo）')
+    ap.add_argument('--no-source', action='store_true', help='这次不备份源码')
     args = ap.parse_args()
 
     TOKEN = args.token or os.environ.get('GITHUB_TOKEN') or os.environ.get('GH_TOKEN') or ''
@@ -254,6 +395,11 @@ def main():
 
     if args.keep_deployments and args.keep_deployments > 0:
         prune_deployments(args.repo, args.keep_deployments, sha)
+
+    # 顺带备份源码
+    src_repo = args.source_repo or load_site_config().get('source_repo') or ''
+    if src_repo and not args.no_source:
+        push_source(src_repo)
 
 
 if __name__ == '__main__':
