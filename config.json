@@ -1,0 +1,55 @@
+{
+  "title": "Rookie-Chick",
+  "brand": "Rookie",
+  "description": "我的第一个博客",
+  "author": "Rookie-Chick",
+  "email": "3406921336@qq.com",
+
+  "url": "https://rookie-chick.github.io",
+  "base_url": "",
+
+  "lang": "zh-CN",
+  "feed_count": 20,
+
+  "banner": {
+    "image": "/assets/background.jpg",
+    "title": "Rookie",
+    "subtitle": "我的第一个博客"
+  },
+
+  "sidebar": {
+    "avatar": "/assets/photo.jpg",
+    "name": "Rookie-Chick",
+    "bio": "Web 安全 / 渗透测试 / 学习笔记",
+    "recent_count": 8,
+    "show_categories": true,
+    "show_tags": true,
+    "links": [
+      { "text": "GitHub", "url": "https://github.com/Rookie-chick" },
+      { "text": "RSS", "url": "/feed.xml" }
+    ]
+  },
+
+  "effects": {
+    "snow": false,
+    "waifu": true,
+    "waifu_person": "33"
+  },
+
+  "default_cover": "",
+
+  "nav": [
+    { "text": "首页", "url": "/", "icon": "home" },
+    { "text": "归档", "url": "/archive.html", "icon": "archive" },
+    { "text": "分类", "url": "/categories.html", "icon": "folder" },
+    { "text": "关于", "url": "/about.html", "icon": "info" },
+    { "text": "台球", "url": "/billiards/index.html", "icon": "game", "blank": true },
+    { "text": "RSS", "url": "/feed.xml", "icon": "rss" }
+  ],
+
+  "social": [
+    { "text": "GitHub", "url": "https://github.com/Rookie-chick", "icon": "github" },
+    { "text": "邮箱", "url": "mailto:3406921336@qq.com", "icon": "mail" },
+    { "text": "RSS", "url": "/feed.xml", "icon": "rss" }
+  ]
+}

@@ -1,0 +1,20 @@
+# 构建产物（如果不想把生成结果提交进仓库，就取消注释）
+# dist/
+# docs/
+
+# 构建缓存（记录上次生成了哪些文件）
+.build-cache/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# 本地配置与密钥
+token.txt
+.env
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
