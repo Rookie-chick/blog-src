@@ -823,6 +823,9 @@
         S.pathTarget = null;
         syncPathPanel();
         onShotEnd();          // 交回原来的回合结算
+      } else {
+        // 执行途中每帧刷一次面板进度（内部按整数百分比节流，不会每帧写 DOM）
+        syncPathPanel();
       }
     } else if (cheatOn && S.phase === 'aim' && !S.ballInHand) {
       // 瞄准线扫到哪颗球，就锁定哪颗球当绘制目标
