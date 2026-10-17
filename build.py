@@ -886,6 +886,98 @@ def render_tag(cfg, name, posts, all_posts, cats, sidebar, prefix='../'):
                   main=body, sidebar=sidebar, prefix=prefix)
 
 
+def render_rss_page(cfg, posts, sidebar, prefix=''):
+    """
+    订阅页。
+
+    浏览器打开 feed.xml 只会看到一堆标签 —— 那是给阅读器吃的格式。
+    与其让访客以为网站坏了，不如给一个正经页面：解释 RSS、给出订阅地址、
+    列出最近更新。裸 XML 仍然保留，给阅读器和老手用。
+    """
+    feed = site_root(cfg) + '/feed.xml'
+    q = quote(feed, safe='')
+
+    rows = []
+    for p in posts[:12]:
+        rows.append(
+            '<li><time datetime="%s">%s</time><a href="%s">%s</a></li>'
+            % (esc_attr(p['datetime']), esc_text(p['date']),
+               esc_attr(href(prefix, p['url'])), esc_text(p['title'])))
+
+    body = RSS_BODY % {
+        'icon': icon('rss'),
+        'feed': esc_attr(feed),
+        'q': q,
+        'rows': ''.join(rows),
+        'count': int(cfg.get('feed_count', 20)),
+    }
+
+    return layout(cfg, '订阅', body, 'RSS 订阅：把新文章推送到你的阅读器', 'page',
+                  active='/rss.html', banner_title='RSS 订阅',
+                  banner_sub='订阅后，新文章自动送到你的阅读器',
+                  main=body, sidebar=sidebar, prefix=prefix)
+
+
+RSS_BODY = """
+<div class="rss-box">
+  <div class="rss-head">
+    <span class="rss-mark">%(icon)s</span>
+    <div>
+      <h1 class="page-title">RSS 订阅</h1>
+      <p class="page-sub">把新文章推到你自己的阅读器里，不用一个个网站去翻</p>
+    </div>
+  </div>
+
+  <p class="rss-lead">
+    如果你在浏览器里点开 <code>feed.xml</code> 看到一堆尖括号 —— 那是正常的。
+    它是给 <strong>RSS 阅读器</strong>读的机器格式，本来就不是给人看的网页。
+    想订阅，用下面的地址。
+  </p>
+
+  <div class="rss-sub">
+    <div class="rss-label">订阅地址</div>
+    <div class="rss-row">
+      <input id="feedUrl" readonly value="%(feed)s" onclick="this.select()">
+      <button id="copyBtn" class="rss-btn">复制</button>
+    </div>
+    <div class="rss-readers">
+      <a class="rss-chip" href="https://feedly.com/i/subscription/feed/%(q)s" target="_blank" rel="noopener">Feedly</a>
+      <a class="rss-chip" href="https://www.inoreader.com/?add_feed=%(q)s" target="_blank" rel="noopener">Inoreader</a>
+      <a class="rss-chip" href="%(feed)s" target="_blank" rel="noopener">查看原始 XML</a>
+    </div>
+  </div>
+
+  <h2 class="rss-h2">最近更新</h2>
+  <ul class="rss-list">%(rows)s</ul>
+
+  <p class="rss-foot">
+    共收录 %(count)d 篇 · 这个地址长期有效，加进阅读器后每篇新文章都会自动出现
+  </p>
+</div>
+
+<script>
+(function () {
+  var btn = document.getElementById('copyBtn');
+  var box = document.getElementById('feedUrl');
+  if (!btn || !box) return;
+  btn.onclick = function () {
+    box.select();
+    box.setSelectionRange(0, 99999);
+    var done = function () {
+      btn.textContent = '已复制';
+      setTimeout(function () { btn.textContent = '复制'; }, 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(box.value).then(done, done);
+    } else {
+      try { document.execCommand('copy'); done(); } catch (e) {}
+    }
+  };
+})();
+</script>
+"""
+
+
 def site_root(cfg):
     """站点根地址（带协议，不带结尾斜杠）—— 只给 RSS / sitemap / og:image 这种
     必须用绝对地址的地方用。站内链接一律走 href() 生成相对路径。"""
@@ -1045,6 +1137,7 @@ def build():
     print('[3/5] 生成页面 ...')
     emit('index.html', render_index(cfg, posts, cats, sidebar))
     emit('archive.html', render_archive(cfg, posts, sidebar))
+    emit('rss.html', render_rss_page(cfg, posts, sidebar))
     emit('404.html', render_404(cfg))
 
     for i, p in enumerate(posts):

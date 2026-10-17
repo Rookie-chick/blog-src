@@ -46,7 +46,7 @@
 - **卡片式首页** —— 缩略图自动抓正文第一张图，不用手动设置封面
 - **右侧边栏** —— 个人卡、最近文章、分类、标签云
 - **归档 / 分类 / 标签** 三种浏览方式
-- **RSS 订阅** —— <https://rookie-chick.github.io/feed.xml>
+- **RSS 订阅** —— 订阅页 <https://rookie-chick.github.io/rss.html> ，订阅地址 <https://rookie-chick.github.io/feed.xml>
 - **全站响应式**，手机端有汉堡菜单
 - **看板娘** —— 右下角的 Live2D 角色，可以摸头、拖动、换人、换装（21 套衣服）
 - **🎱 8 球台球** —— <https://rookie-chick.github.io/billiards/> ，
