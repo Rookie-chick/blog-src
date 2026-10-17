@@ -36,6 +36,20 @@
 
   <div id="stage">
     <canvas id="table"></canvas>
+
+    <div id="pathPanel" class="hidden">
+      <div class="pp-row">
+        <span class="pp-dot"></span>
+        <span class="pp-title">路径绘制</span>
+        <span class="pp-target" id="ppTarget">未锁定目标</span>
+        <span class="pp-actions">
+          <button id="ppOk" class="pp-btn primary" disabled>确认</button>
+          <button id="ppRedraw" class="pp-btn" disabled>重画</button>
+          <button id="ppCancel" class="pp-btn" disabled>取消</button>
+        </span>
+      </div>
+      <div class="pp-hint" id="ppHint">把瞄准线对准一颗球</div>
+    </div>
   </div>
 
   <div id="bottom">
@@ -87,7 +101,7 @@
 <script src="js/render.js"></script>
 <script src="js/rules.js"></script>
 <script src="js/ai.js"></script>
-<script src="js/supercue.js"></script>
+<script src="js/pathdraw.js"></script>
 <script src="js/skins.js"></script>
 <script src="js/game.js"></script>
 </body>

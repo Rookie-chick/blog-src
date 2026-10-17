@@ -1,0 +1,324 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  min-height: 100%;
+  background: radial-gradient(1200px 700px at 50% 20%, #2c3a4a 0%, #151d27 60%, #0d1218 100%);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #dbe4ee;
+  user-select: none;
+}
+
+#app {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 18px 16px 26px;
+}
+
+/* ---------- HUD ---------- */
+#hud {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.player-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 14px;
+  padding: 10px 14px;
+  transition: border-color .25s, background .25s;
+}
+.player-card.right { justify-content: flex-end; }
+.player-card.active {
+  border-color: #f0b429;
+  background: rgba(240, 180, 41, .12);
+}
+
+.avatar {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600;
+  flex-shrink: 0;
+}
+.avatar.p1 { background: #2f6fb5; color: #eaf3ff; }
+.avatar.p2 { background: #a8483f; color: #ffeeea; }
+
+.player-card .info { min-width: 68px; }
+.player-card.right .info { text-align: right; }
+.pname { font-size: 14px; font-weight: 600; }
+.ptype { font-size: 11.5px; color: #93a2b4; margin-top: 2px; }
+
+.ballrow { display: flex; gap: 3px; flex-wrap: wrap; max-width: 130px; }
+.bdot {
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  font-size: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: #1a1a1a;
+  border: 1px solid rgba(0, 0, 0, .35);
+  transition: opacity .3s, transform .3s;
+}
+.bdot.potted { opacity: .18; transform: scale(.7); }
+
+.center-panel {
+  flex: 1.1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+}
+.msg { font-size: 15px; font-weight: 600; color: #f0d89a; letter-spacing: .5px; }
+.hint { font-size: 11.5px; color: #7f8fa3; margin-top: 3px; }
+
+/* ---------- 球桌 ---------- */
+#stage {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 26px 60px rgba(0, 0, 0, .55);
+  line-height: 0;
+}
+#table { display: block; width: 100%; height: auto; cursor: crosshair; }
+
+/* ---------- 底部控制 ---------- */
+#bottom {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.power-wrap { flex: 1; min-width: 240px; display: flex; align-items: center; gap: 10px; }
+.power-label, .spin-label { font-size: 11.5px; color: #93a2b4; }
+.power-bar {
+  flex: 1;
+  height: 14px;
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.power-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #4caf50 0%, #ffc107 55%, #f44336 100%);
+  transition: width .04s linear;
+}
+.power-val { font-size: 12px; width: 38px; text-align: right; color: #cbd6e4; }
+
+.spin-wrap { text-align: center; }
+#spin { border-radius: 50%; cursor: grab; display: block; margin: 0 auto; }
+#spin:active { cursor: grabbing; }
+.spin-note { font-size: 10.5px; color: #6f7d90; margin-top: 2px; }
+
+.ctrl { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .14);
+  color: #cfdae7;
+  padding: 7px 13px;
+  border-radius: 9px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .18s, border-color .18s;
+}
+.btn:hover { background: rgba(255, 255, 255, .12); }
+.btn.primary {
+  background: #2f6fb5;
+  border-color: #3d84d1;
+  color: #fff;
+}
+.btn.primary:hover { background: #3a80cc; }
+
+/* ---------- 球杆选择 ---------- */
+#cueSelect {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+}
+.cue-tip {
+  font-size: 11.5px;
+  color: #93a2b4;
+  margin-bottom: 10px;
+  letter-spacing: .5px;
+}
+.cue-cards { display: flex; gap: 12px; flex-wrap: wrap; }
+.cue-card {
+  flex: 1;
+  min-width: 168px;
+  max-width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 12px;
+  padding: 10px 12px 11px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s, transform .12s;
+}
+.cue-card:hover { background: rgba(255, 255, 255, .09); }
+.cue-card:active { transform: scale(.97); }
+.cue-card.active { border-color: #f0b429; background: rgba(240, 180, 41, .12); }
+
+/* 整根杆的贴图条：素材是 16:1，铺满卡片宽度正好是一条细杆 */
+.cue-strip {
+  height: 20px;
+  border-radius: 6px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  background-color: rgba(0, 0, 0, .18);
+}
+.cue-strip.plain { background-size: cover; }
+
+.cue-row { display: flex; align-items: baseline; gap: 8px; }
+.cue-name { font-size: 13px; font-weight: 600; flex: 1; }
+.cue-desc { font-size: 11px; color: #93a2b4; }
+.cue-star { font-size: 11px; color: #f0b429; letter-spacing: 1px; flex-shrink: 0; }
+
+/* ---------- 球桌皮肤 ---------- */
+#tableSelect {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+}
+.table-cards { display: flex; gap: 12px; flex-wrap: wrap; }
+.table-card {
+  width: 178px;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 12px;
+  padding: 8px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s, transform .12s;
+}
+.table-card:hover { background: rgba(255, 255, 255, .09); }
+.table-card:active { transform: scale(.97); }
+.table-card.active { border-color: #f0b429; background: rgba(240, 180, 41, .12); }
+.table-thumb {
+  height: 84px;
+  border-radius: 8px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+.table-name {
+  font-size: 12px;
+  color: #cbd6e4;
+  text-align: center;
+  margin-top: 6px;
+}
+.table-card.active .table-name { color: #f0d89a; }
+
+
+/* ---------- 超级杆：路径绘制面板 ---------- */
+#pathPanel {
+  position: absolute;
+  left: 8px; right: 8px; top: 6px;
+  z-index: 20;
+  padding: 9px 12px 10px;
+  border-radius: 11px;
+  background: rgba(9, 16, 23, .86);
+  border: 1px solid rgba(67, 232, 255, .38);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .5);
+  /* 面板本身不拦鼠标，否则球走到顶部就点不到了；只有按钮接收事件 */
+  pointer-events: none;
+  line-height: 1.5;
+}
+#pathPanel.hidden { display: none; }
+.pp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pp-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #43e8ff; box-shadow: 0 0 9px rgba(67, 232, 255, .9);
+  flex-shrink: 0;
+  animation: ppPulse 1.5s ease-in-out infinite;
+}
+@keyframes ppPulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+.pp-title { font-size: 12.5px; font-weight: 600; color: #8ef2ff; letter-spacing: .6px; }
+.pp-target {
+  font-size: 11.5px; color: #93a2b4;
+  padding: 1px 8px; border-radius: 999px;
+  background: rgba(255, 255, 255, .06);
+}
+.pp-actions { margin-left: auto; display: flex; gap: 7px; pointer-events: auto; }
+.pp-btn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  background: rgba(255, 255, 255, .07);
+  color: #dbe4ee;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .18s, border-color .18s;
+}
+.pp-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .13); }
+.pp-btn.primary {
+  background: rgba(67, 232, 255, .16);
+  border-color: rgba(67, 232, 255, .5);
+  color: #b7f5ff;
+}
+.pp-btn.primary:hover:not(:disabled) { background: rgba(67, 232, 255, .28); }
+.pp-btn:disabled { opacity: .3; cursor: not-allowed; }
+.pp-hint { margin-top: 5px; font-size: 11.5px; color: #93a2b4; }
+
+@media (max-width: 640px) {
+  .pp-hint { display: none; }
+  .pp-btn { padding: 5px 10px; }
+}
+
+/* ---------- 结算弹窗 ---------- */
+#overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(8, 12, 18, .72);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50;
+}
+#overlay.hidden { display: none; }
+.dialog {
+  background: #1c2530;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 16px;
+  padding: 30px 40px;
+  text-align: center;
+  min-width: 280px;
+}
+.dialog h2 { font-size: 24px; margin-bottom: 8px; color: #f0d89a; }
+.dialog p { font-size: 13px; color: #9aa9bb; margin-bottom: 18px; }
+
+@media (max-width: 720px) {
+  .ballrow { display: none; }
+  .spin-wrap { transform: scale(.85); transform-origin: center; }
+  #hud { gap: 8px; }
+}
+
+/* ---------- 超级杆（外挂模式） ---------- */
+.cue-card.cheat { border-color: rgba(67, 232, 255, .42); }
+.cue-card.cheat:hover { background: rgba(67, 232, 255, .08); }
+.cue-card.cheat.active {
+  border-color: #43e8ff;
+  background: rgba(67, 232, 255, .14);
+  box-shadow: 0 0 0 1px rgba(67, 232, 255, .35), 0 0 18px rgba(67, 232, 255, .18);
+}
+.cue-card.cheat .cue-star { color: #43e8ff; }
+.cheat-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 15px;
+  font-weight: 500;
+  border-radius: 3px;
+  background: rgba(67, 232, 255, .18);
+  color: #43e8ff;
+  vertical-align: 1px;
+  letter-spacing: 0;
+}

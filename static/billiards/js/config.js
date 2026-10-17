@@ -73,9 +73,9 @@ window.BK = window.BK || {};
     { id: 'ruyi', name: '如意金箍杆', power: 1.42, depth: 3, star: '★★★', skin: 2,
       img: 'assets/cue/cue_ruyi_jingu.png',
       desc: '力度 ×1.4 · 准线 双段反弹' },
-    // 超级杆保留程序化皮肤（青色辉光），跟"外挂"的调性更配
+    // 超级杆：程序化青色辉光皮肤；选中后不再走蓄力出杆，而是进入路径绘制
     { id: 'super', name: '超级杆', power: 1.45, depth: 3, star: '★★★+', skin: 3, cheat: true,
-      desc: '外挂 · 高亮必进袋口' }
+      desc: '外挂 · 手绘路线，无视物理' }
   ];
 
   // 球桌皮肤（贴图由 skins.js 按台面 2:1 精确对齐）

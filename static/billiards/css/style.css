@@ -77,6 +77,7 @@ html, body {
 
 /* ---------- 球桌 ---------- */
 #stage {
+  position: relative;
   border-radius: 18px;
   overflow: hidden;
   box-shadow: 0 26px 60px rgba(0, 0, 0, .55);
@@ -217,6 +218,62 @@ html, body {
 }
 .table-card.active .table-name { color: #f0d89a; }
 
+
+/* ---------- 超级杆：路径绘制面板 ---------- */
+#pathPanel {
+  position: absolute;
+  left: 8px; right: 8px; top: 6px;
+  z-index: 20;
+  padding: 9px 12px 10px;
+  border-radius: 11px;
+  background: rgba(9, 16, 23, .86);
+  border: 1px solid rgba(67, 232, 255, .38);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .5);
+  /* 面板本身不拦鼠标，否则球走到顶部就点不到了；只有按钮接收事件 */
+  pointer-events: none;
+  line-height: 1.5;
+}
+#pathPanel.hidden { display: none; }
+.pp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pp-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #43e8ff; box-shadow: 0 0 9px rgba(67, 232, 255, .9);
+  flex-shrink: 0;
+  animation: ppPulse 1.5s ease-in-out infinite;
+}
+@keyframes ppPulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+.pp-title { font-size: 12.5px; font-weight: 600; color: #8ef2ff; letter-spacing: .6px; }
+.pp-target {
+  font-size: 11.5px; color: #93a2b4;
+  padding: 1px 8px; border-radius: 999px;
+  background: rgba(255, 255, 255, .06);
+}
+.pp-actions { margin-left: auto; display: flex; gap: 7px; pointer-events: auto; }
+.pp-btn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  background: rgba(255, 255, 255, .07);
+  color: #dbe4ee;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .18s, border-color .18s;
+}
+.pp-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .13); }
+.pp-btn.primary {
+  background: rgba(67, 232, 255, .16);
+  border-color: rgba(67, 232, 255, .5);
+  color: #b7f5ff;
+}
+.pp-btn.primary:hover:not(:disabled) { background: rgba(67, 232, 255, .28); }
+.pp-btn:disabled { opacity: .3; cursor: not-allowed; }
+.pp-hint { margin-top: 5px; font-size: 11.5px; color: #93a2b4; }
+
+@media (max-width: 640px) {
+  .pp-hint { display: none; }
+  .pp-btn { padding: 5px 10px; }
+}
+
 /* ---------- 结算弹窗 ---------- */
 #overlay {
   position: absolute;
@@ -267,22 +324,6 @@ html, body {
 }
 
 /* ---------- 返回博客（myblog 集成时追加） ---------- */
-.back-home {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, .07);
-  text-align: center;
-}
-.back-home a {
-  display: inline-block;
-  font-size: 12.5px;
-  color: #7f8fa3;
-  text-decoration: none;
-  padding: 4px 12px;
-  border-radius: 999px;
-  transition: color .2s, background .2s;
-}
-.back-home a:hover {
-  color: #f0b429;
-  background: rgba(255, 255, 255, .06);
-}
+.back-home { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.07); text-align: center; }
+.back-home a { display: inline-block; font-size: 12.5px; color: #7f8fa3; text-decoration: none; padding: 4px 12px; border-radius: 999px; transition: color .2s, background .2s; }
+.back-home a:hover { color: #f0b429; background: rgba(255,255,255,.06); }

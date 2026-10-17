@@ -546,116 +546,91 @@ window.BK = window.BK || {};
     }
   };
 
-  /* ---------------- 超级杆：必进袋口高亮 ---------------- */
+  /* ---------------- 超级杆：路径绘制 ---------------- */
 
-  // list 来自 BK.superCue.find()，每个元素代表"这个袋口有必然进球路线"。
-  // 青色 = 当前力度够；橙色 = 路线成立但你现在的力度推不到。
-  Renderer.prototype.drawSuperPockets = function (ctx, list, opts) {
-    if (!list || list.length === 0) return;
+  // 画玩家画出来的路线。绘制中用青色流动虚线，执行中压暗，
+  // 让"球正沿着这条线走"这件事一眼能看出来。
+  Renderer.prototype.drawPath = function (ctx, path, opts) {
+    if (!path || !path.pts || path.pts.length < 2) return;
     opts = opts || {};
-    var pulse = 1 + Math.sin(Date.now() * 0.006) * 0.13;
-    var i, it, pk, enough, col;
 
-    for (i = 0; i < list.length; i++) {
-      it = list[i];
-      pk = it.pocket;
-      enough = !opts.charging || (opts.power || 0) >= it.powerNeeded - 0.02;
-      col = enough ? '67, 232, 255' : '255, 176, 32';
+    var pts = path.pts;
+    var running = path.state === 'running';
+    var now = Date.now();
 
-      ctx.save();
-
-      // 袋口底色：纯黑袋口上必须有填充才看得出高亮
-      ctx.fillStyle = 'rgba(' + col + ', .20)';
+    var trace = function () {
       ctx.beginPath();
-      ctx.arc(pk.x, pk.y, C.POCKET_R * 0.92 * pulse, 0, PI * 2);
-      ctx.fill();
-
-      // 主光环
-      ctx.strokeStyle = 'rgba(' + col + ', .95)';
-      ctx.lineWidth = 2.4;
-      ctx.shadowColor = 'rgba(' + col + ', .85)';
-      ctx.shadowBlur = 12;
-      ctx.beginPath();
-      ctx.arc(pk.x, pk.y, C.POCKET_R * 0.86 * pulse, 0, PI * 2);
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
       ctx.stroke();
+    };
 
-      // 内环：两条环反向呼吸，动静比单环明显
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 0.5;
-      ctx.lineWidth = 1.2;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // 底层辉光：让线在深色台呢上也能浮起来
+    ctx.strokeStyle = running ? 'rgba(67, 232, 255, .07)' : 'rgba(67, 232, 255, .15)';
+    ctx.lineWidth = 10;
+    trace();
+
+    // 主线
+    ctx.setLineDash([9, 8]);
+    ctx.lineDashOffset = -(now * 0.035) % 68;
+    ctx.strokeStyle = running ? 'rgba(67, 232, 255, .35)' : 'rgba(67, 232, 255, .92)';
+    ctx.lineWidth = 2.2;
+    trace();
+
+    // 已走过的段：实心高亮，和虚线形成对比，进度一目了然
+    if (running && path.dist > 1) {
+      ctx.setLineDash([]);
+      ctx.strokeStyle = 'rgba(180, 250, 255, .85)';
+      ctx.lineWidth = 2.6;
       ctx.beginPath();
-      ctx.arc(pk.x, pk.y, C.POCKET_R * 0.56 / pulse, 0, PI * 2);
+      ctx.moveTo(pts[0].x, pts[0].y);
+      var acc = 0;
+      for (var k = 1; k < pts.length; k++) {
+        var seg = Math.hypot(pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y);
+        if (acc + seg >= path.dist) {
+          var r = (path.dist - acc) / (seg || 1);
+          ctx.lineTo(pts[k - 1].x + (pts[k].x - pts[k - 1].x) * r,
+                     pts[k - 1].y + (pts[k].y - pts[k - 1].y) * r);
+          break;
+        }
+        ctx.lineTo(pts[k].x, pts[k].y);
+        acc += seg;
+      }
       ctx.stroke();
-
-      ctx.restore();
     }
 
-    // 当前瞄准方向命中的那个袋口：把"白球→幽灵球→本球→袋口"整条路线画出来
-    var f = opts.focus;
-    if (!f || !opts.cue) return;
-
-    var cue = opts.cue;
-    ctx.save();
-    ctx.setLineDash([5, 5]);
-    ctx.lineDashOffset = -(Date.now() * 0.02) % 40;
-    ctx.strokeStyle = 'rgba(67, 232, 255, .85)';
-    ctx.lineWidth = 1.5;
-    ctx.lineCap = 'round';
-
-    // 白球 → 幽灵球
-    ctx.beginPath();
-    ctx.moveTo(cue.x, cue.y);
-    ctx.lineTo(f.ghost.x, f.ghost.y);
-    ctx.stroke();
-
-    // 本球 → 袋口
-    ctx.strokeStyle = 'rgba(67, 232, 255, .65)';
-    ctx.beginPath();
-    ctx.moveTo(f.ball.x, f.ball.y);
-    ctx.lineTo(f.pocket.x, f.pocket.y);
-    ctx.stroke();
     ctx.restore();
 
-    // 幽灵球虚影
+    // 起点：套在球上的一圈
+    var s = pts[0];
     ctx.save();
-    ctx.fillStyle = 'rgba(67, 232, 255, .16)';
-    ctx.strokeStyle = 'rgba(67, 232, 255, .9)';
-    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = 'rgba(67, 232, 255, .8)';
+    ctx.lineWidth = 1.6;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
-    ctx.arc(f.ghost.x, f.ghost.y, C.BALL_R, 0, PI * 2);
-    ctx.fill();
+    ctx.arc(s.x, s.y, C.BALL_R + 5, 0, PI * 2);
     ctx.stroke();
     ctx.restore();
 
-    // 本球去向上画个实心箭头，指向袋口
-    var adx = f.pocket.x - f.ball.x, ady = f.pocket.y - f.ball.y;
-    var al = Math.hypot(adx, ady) || 1;
-    adx /= al; ady /= al;
-    var startX = f.ball.x + adx * (C.BALL_R + 4);
-    var startY = f.ball.y + ady * (C.BALL_R + 4);
-    var len = Math.min(46, al - C.BALL_R * 2);
-    if (len > 8) {
-      var head = 8;
-      ctx.save();
-      ctx.translate(startX, startY);
-      ctx.rotate(Math.atan2(ady, adx));
-      ctx.strokeStyle = 'rgba(67, 232, 255, .92)';
-      ctx.fillStyle = 'rgba(67, 232, 255, .92)';
-      ctx.lineWidth = 2.2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(len - head, 0);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(len, 0);
-      ctx.lineTo(len - head, -head * 0.55);
-      ctx.lineTo(len - head, head * 0.55);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
+    // 终点：双环靶心
+    var e = pts[pts.length - 1];
+    var pulse = 1 + Math.sin(now * 0.006) * 0.12;
+    ctx.save();
+    ctx.strokeStyle = running ? 'rgba(67, 232, 255, .45)' : 'rgba(67, 232, 255, .95)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, 9 * pulse, 0, PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, 15 * pulse, 0, PI * 2);
+    ctx.stroke();
+    ctx.restore();
   };
 
   /* ---------------- 击球点面板 ---------------- */
@@ -716,15 +691,8 @@ window.BK = window.BK || {};
 
     if (view.showAim && view.pred && view.canShoot) this.drawAim(ctx, view.pred);
 
-    // 超级杆的必进袋口高亮：画在球之上、白球之下，既有存在感又不挡视线
-    if (view.superPockets && view.superPockets.length) {
-      this.drawSuperPockets(ctx, view.superPockets, {
-        focus: view.superFocus,
-        cue: world.cue(),
-        charging: view.charging,
-        power: view.power
-      });
-    }
+    // 超级杆的路径：画在球之上、白球之下
+    if (view.path) this.drawPath(ctx, view.path);
 
     // 白球（自由球时跟随鼠标）
     var cue = world.cue();

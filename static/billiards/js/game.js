@@ -28,7 +28,13 @@
     btnAim: document.getElementById('btnAim'),
     btnLevel: document.getElementById('btnLevel'),
     btnRestart: document.getElementById('btnRestart'),
-    ovBtn: document.getElementById('ovBtn')
+    ovBtn: document.getElementById('ovBtn'),
+    pathPanel: document.getElementById('pathPanel'),
+    ppTarget: document.getElementById('ppTarget'),
+    ppHint: document.getElementById('ppHint'),
+    ppOk: document.getElementById('ppOk'),
+    ppRedraw: document.getElementById('ppRedraw'),
+    ppCancel: document.getElementById('ppCancel')
   };
 
   var S = {
@@ -49,10 +55,8 @@
     spinY: 0,
     spinDirty: true,
     pred: null,
-    superPockets: [],   // 超级杆算出的"必进袋口"（空数组 = 无高亮）
-    superFocus: null,   // 当前瞄准方向命中的那个，画完整路线
-    superOn: false,     // 当前是否挂着外挂杆
-    superCount: -1,     // 上一次的高亮数量，用来判断要不要刷新提示
+    path: null,         // 当前正在画/正在走的路径（BK.path.Path）
+    pathTarget: null,   // 瞄准线命中的球，路径就是给它画的
     lastTs: 0,
     strike: 0,       // 击球瞬间球杆前推动画剩余时间
     strikeFrom: 0    // 前推起始拉距
@@ -86,11 +90,15 @@
       el.hint.textContent = '移动鼠标摆放白球 · 点击确认位置';
     } else if (S.phase === 'ai') {
       el.hint.textContent = '电脑瞄准中，看它的杆';
-    } else if (S.superOn) {
-      el.hint.textContent = S.superPockets.length
-        ? '超级杆 · ' + S.superPockets.length +
-          ' 个袋口必进（青圈）· 力度不足会变橙圈'
-        : '超级杆 · 当前没有必进的袋口，换个角度或先把球做开';
+    } else if (S.phase === 'pathdraw') {
+      el.hint.textContent = '按住拖动，画出这颗球的走位路线 · Esc 取消';
+    } else if (S.phase === 'pathready') {
+      el.hint.textContent = '路线画好了 · 确认执行 / 重画 / 取消';
+    } else if (S.phase === 'pathexec') {
+      el.hint.textContent = '沿路线运动中 —— 无视碰撞与摩擦';
+    } else if (S.pathTarget) {
+      el.hint.textContent = '超级杆 · 已锁定 ' + S.pathTarget.num +
+        ' 号球 · 把鼠标移到球上按住拖动，画它的路线';
     } else if (S.aimNudge !== 0) {
       el.hint.textContent = '微调 ' + nudgeText() +
         ' · 滚轮 ±0.3°（Shift ±0.05°）· 按 R 归零';
@@ -197,6 +205,155 @@
     S.spinDirty = true;
   }
 
+  /* ---------------- 超级杆：路径绘制 ---------------- */
+
+  var ppPct = -1;
+
+  /**
+   * 面板状态同步。
+   * 按钮可用性只看 S.phase：画的过程中只能取消，画完了才能确认，
+   * 执行中全部锁死 —— 这样"重复触发"从 UI 层就不可能发生。
+   */
+  function syncPathPanel() {
+    var panel = el.pathPanel;
+    if (!panel) return;
+
+    // 可见性只看数据，不看 phase。
+    // 之前这里带上了 phase === 'pathexec'，结果路径走完、phase 被 onShotEnd
+    // 改成 'shooting' 之后，这个分支再也进不来，面板就赖在屏幕上了。
+    var visible = !!(S.pathTarget || S.path);
+    panel.classList.toggle('hidden', !visible);
+    if (!visible) return;
+
+    var tgt = S.pathTarget;
+    el.ppTarget.textContent = tgt ? ('目标 #' + tgt.num) : '未锁定目标';
+
+    var running = S.phase === 'pathexec';
+    var ready = S.phase === 'pathready';
+    var drawing = S.phase === 'pathdraw';
+
+    el.ppOk.disabled = !ready;
+    el.ppRedraw.disabled = !(drawing || ready);
+    el.ppCancel.disabled = running;
+
+    var len = (S.path && S.path.total) ? Math.round(S.path.total) : 0;
+    if (running) {
+      var pct = Math.round((S.path ? S.path.progress() : 0) * 100);
+      if (pct !== ppPct) {
+        ppPct = pct;
+        el.ppHint.textContent = '沿路线运动中 · ' + pct + '%（无视碰撞与摩擦）';
+      }
+    } else if (ready) {
+      el.ppHint.textContent = '路线 ' + len + 'px · 确认后球会严格沿这条线走';
+    } else if (drawing) {
+      el.ppHint.textContent = '按住拖动中 · 已画 ' + len + 'px · 松开结束';
+    } else {
+      el.ppHint.textContent = tgt
+        ? ('把鼠标移到 ' + tgt.num + ' 号球上，按住拖动画路线')
+        : '把瞄准线对准一颗球';
+    }
+  }
+
+  function enterDraw(e) {
+    var tgt = S.pathTarget;
+    if (!tgt || !tgt.active) return false;
+
+    var p = renderer.toLocal(e);
+    // 起点必须落在目标球附近，否则画出来的线第一条就是一段莫名其妙的跳线
+    if (U.dist(p.x, p.y, tgt.x, tgt.y) > BK.path.START_R) {
+      setMsg('把鼠标移到 ' + tgt.num + ' 号球上，再按住拖动');
+      return false;
+    }
+
+    S.path = new BK.path.Path(tgt);
+    S.phase = 'pathdraw';
+    S.charging = false;
+    S.power = 0;
+    ppPct = -1;
+    syncPathPanel();
+    updateHint();
+    setMsg('开始绘制 ' + tgt.num + ' 号球的路线');
+    return true;
+  }
+
+  function addDrawPoint(e) {
+    if (!S.path || S.phase !== 'pathdraw') return;
+    var p = renderer.toLocal(e);
+    if (S.path.addPoint(p.x, p.y)) syncPathPanel();
+  }
+
+  function finishDraw() {
+    if (!S.path || S.phase !== 'pathdraw') return;
+
+    if (!S.path.finish()) {
+      // 路径太短：直接丢弃，回到瞄准，等玩家重新按下去画
+      var tgt = S.path.ball;
+      S.path = null;
+      S.phase = 'aim';
+      S.pathTarget = tgt;
+      syncPathPanel();
+      updateHint();
+      setMsg('路径太短（至少 ' + BK.path.MIN_LEN + 'px）· 重新画一条');
+      return;
+    }
+
+    S.phase = 'pathready';
+    syncPathPanel();
+    updateHint();
+    setMsg('路线就绪 · 点「确认」让球沿这条线走');
+  }
+
+  function confirmPath() {
+    if (!S.path || S.phase !== 'pathready') return;
+    var ball = S.path.ball;
+
+    // 目标球在这期间被别的途径弄没了（理论上不会，防御一下）
+    if (!ball || !ball.active) {
+      cancelPath('目标球已不在台面，绘制已取消');
+      return;
+    }
+
+    BK.Audio.init();
+    BK.Audio.cue(0.85);
+    S.path.start();
+    S.phase = 'pathexec';
+    S.charging = false;
+    S.power = 0;
+    ppPct = -1;
+    resetSpin();
+    syncPathPanel();
+    updateHint();
+    setMsg('沿路线运动中');
+  }
+
+  function cancelPath(msg) {
+    if (S.phase === 'pathexec') return;   // 已经开始走了，不能中途取消
+    S.path = null;
+    S.phase = 'aim';
+    ppPct = -1;
+    syncPathPanel();
+    updateHint();
+    setMsg(msg || '已取消绘制');
+  }
+
+  function redrawPath() {
+    if (S.phase === 'pathexec') return;
+    S.path = null;
+    S.phase = 'aim';
+    ppPct = -1;
+    syncPathPanel();
+    updateHint();
+    setMsg('重新画一条 · 按住鼠标从球上开始拖');
+  }
+
+  function clearPathState() {
+    S.path = null;
+    S.pathTarget = null;
+    ppPct = -1;
+    if (S.phase === 'pathdraw' || S.phase === 'pathready') S.phase = 'aim';
+    syncPathPanel();
+  }
+
   /* ---------------- 回合流转 ---------------- */
 
   function doShoot(power, angle, sx, sy) {
@@ -248,6 +405,7 @@
     S.aimTarget = 0;
     S.aimNear = false;
     S.aimNudge = 0;
+    clearPathState();
     setMsg('开球打进黑八 · 重新开局，你继续开球');
       updateHUD();
       return;
@@ -348,6 +506,7 @@
     S.aimNudge = 0;
     S.strike = 0;
     el.overlay.classList.add('hidden');
+    clearPathState();
     setMsg('开球吧 · 按住鼠标蓄力');
     updateHint();
     updateHUD();
@@ -358,6 +517,10 @@
   var canvas = renderer.canvas;
 
   canvas.addEventListener('mousemove', function (e) {
+    if (S.phase === 'pathdraw') {
+      addDrawPoint(e);
+      return;
+    }
     var p = renderer.toLocal(e);
     var cue = world.cue();
     if (S.phase === 'ballinhand') {
@@ -391,6 +554,11 @@
       }
       return;
     }
+    // 超级杆：按下即进入绘制，不走蓄力
+    if (S.phase === 'aim' && S.pathTarget) {
+      enterDraw(e);
+      return;
+    }
     if (S.phase === 'aim') {
       S.charging = true;
       S.power = 0;
@@ -399,6 +567,10 @@
   });
 
   window.addEventListener('mouseup', function () {
+    if (S.phase === 'pathdraw') {
+      finishDraw();
+      return;
+    }
     if (S.phase === 'charging') {
       S.charging = false;
       doShoot(S.power, S.aimAngle, S.spinX, S.spinY);
@@ -407,6 +579,10 @@
 
   window.addEventListener('keydown', function (e) {
     if (e.code === 'Escape') {
+      if (S.phase === 'pathdraw' || S.phase === 'pathready') {
+        cancelPath();
+        return;
+      }
       if (S.phase === 'charging') {
         S.charging = false;
         S.power = 0;
@@ -424,9 +600,20 @@
       }
       return;
     }
+    // Enter：确认路径（等效于点「确认」按钮）
+    if (e.code === 'Enter' && S.phase === 'pathready') {
+      e.preventDefault();
+      confirmPath();
+      return;
+    }
     if (e.code !== 'Space') return;
     e.preventDefault();
     BK.Audio.init();
+    // 超级杆不走蓄力出杆，空格在这里没有意义
+    if (S.pathTarget) {
+      setMsg('超级杆：用鼠标在球上按住拖动画路线');
+      return;
+    }
     if (S.phase === 'ballinhand') {
       if (validCuePos(world.cue().x, world.cue().y)) {
         S.ballInHand = false;
@@ -523,6 +710,10 @@
   el.btnRestart.addEventListener('click', restart);
   el.ovBtn.addEventListener('click', restart);
 
+  if (el.ppOk) el.ppOk.addEventListener('click', confirmPath);
+  if (el.ppRedraw) el.ppRedraw.addEventListener('click', redrawPath);
+  if (el.ppCancel) el.ppCancel.addEventListener('click', function () { cancelPath(); });
+
   /* ---------------- 球杆选择 ---------------- */
 
   // 与 render.js 的 CUE_SKINS.shaft 保持一致，卡片色块就是台上那根杆的颜色
@@ -554,10 +745,13 @@
           '<div class="cue-desc">' + cue.desc + '</div>';
 
         card.addEventListener('click', function () {
+          var wasCheat = !!C.CUES[S.cueIdx].cheat;
           S.cueIdx = idx;
+          // 换杆必须把绘制状态清干净，否则残留的路径会跟着新杆跑
+          if (wasCheat || cue.cheat) clearPathState();
           buildCueCards();
           if (cue.cheat) {
-            setMsg('超级杆已开 · 青圈袋口必进（橙圈说明力度不够）');
+            setMsg('超级杆已开 · 瞄准一颗球，按住拖动画它的路线');
           } else {
             setMsg('已换 ' + cue.name);
           }
@@ -618,25 +812,34 @@
     }
     S.pred = aiming ? BK.aim.predict(world, S.aimAngle, C.CUES[S.cueIdx].depth) : null;
 
-    // 超级杆：每帧重算必进袋口。
-    // 只在"轮到你瞄准/蓄力"时算——电脑回合、球在滚动、自由球摆位时一律清空，
-    // 换回普通杆后 cueCfg.cheat 为假，这里也会自然清掉所有高亮。
+    // ---- 超级杆：路径模式 ----
     var cueCfg = C.CUES[S.cueIdx];
-    var superOn = !!cueCfg.cheat &&
-      (S.phase === 'aim' || S.phase === 'charging') && !S.ballInHand;
-    if (superOn) {
-      S.superPockets = BK.superCue.find(world, cueCfg);
-      S.superFocus = BK.superCue.focused(S.superPockets, S.aimAngle);
-    } else if (S.superPockets.length || S.superFocus || S.superOn) {
-      S.superPockets = [];
-      S.superFocus = null;
-    }
+    var cheatOn = !!cueCfg.cheat;
 
-    // 高亮数量变了才刷提示，避免每帧改 DOM
-    if (superOn !== S.superOn || S.superPockets.length !== S.superCount) {
-      S.superOn = superOn;
-      S.superCount = S.superPockets.length;
-      updateHint();
+    if (S.phase === 'pathexec' && S.path) {
+      if (S.path.step(world, dt)) {
+        S.path.finishRun(world);
+        S.path = null;
+        S.pathTarget = null;
+        syncPathPanel();
+        onShotEnd();          // 交回原来的回合结算
+      }
+    } else if (cheatOn && S.phase === 'aim' && !S.ballInHand) {
+      // 瞄准线扫到哪颗球，就锁定哪颗球当绘制目标
+      var tgt = BK.path.pickTarget(world, S.aimAngle);
+      if (tgt !== S.pathTarget) {
+        S.pathTarget = tgt;
+        if (S.path) { S.path = null; }   // 目标换了，旧路线作废
+        syncPathPanel();
+        updateHint();
+      }
+    } else if (!cheatOn || S.ballInHand || S.phase === 'ai') {
+      // 换回普通杆 / 摆球 / 电脑回合：清空一切绘制状态
+      if (S.pathTarget || S.path) {
+        S.pathTarget = null;
+        S.path = null;
+        syncPathPanel();
+      }
     }
 
     // 球杆拉距：蓄力时后退；AI 瞄准时小幅预备；击球瞬间冲向白球
@@ -662,10 +865,7 @@
       cueSkin: C.CUES[S.cueIdx].skin,
       ballInHand: S.phase === 'ballinhand',
       ballInHandValid: validCuePos(cue.x, cue.y),
-      superPockets: S.superPockets,
-      superFocus: S.superFocus,
-      charging: S.charging,
-      power: S.power,
+      path: S.path,
       tableImg: BK.skins.tableImage(S.tableId),
       cueImg: BK.skins.cueImage(C.CUES[S.cueIdx])
     });
@@ -691,5 +891,6 @@
   buildCueCards();
   buildTableCards();
   restart();
+  syncPathPanel();
   requestAnimationFrame(loop);
 })();
