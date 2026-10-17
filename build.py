@@ -1062,7 +1062,11 @@ def sync_tree(src, dst, prefix):
             if not same:
                 shutil.copy2(s, d)
             rel = fn if rel_dir == '.' else os.path.join(rel_dir, fn)
-            written.add((prefix + '/' + rel).replace('\\', '/'))
+            rel = rel.replace('\\', '/')
+            # prefix 为空时不能拼成 '/xxx'：带前导斜杠的路径在 Windows 上会被
+            # os.path.join 当成绝对路径，prune() 就永远找不到那个文件，
+            # 结果就是产物目录里的过期文件一直删不掉。
+            written.add((prefix + '/' + rel) if prefix else rel)
     return written
 
 
@@ -1086,18 +1090,34 @@ def prune(out, current):
             old = json.loads(read_text(mp))
         except Exception:
             old = []
+    def norm(r):
+        return r.lstrip('/').replace('\\', '/')
+
+    current = set(norm(r) for r in current)
     removed = []
     for rel in old:
-        if rel not in current:
-            f = os.path.join(out, rel.replace('/', os.sep))
+        if norm(rel) not in current:
+            f = os.path.join(out, norm(rel).replace('/', os.sep))
             if os.path.isfile(f):
                 try:
                     os.remove(f)
                     removed.append(rel)
                 except OSError:
                     pass
+    # 兜底：清单本身可能被上一次构建覆盖过，更早的产物会变成"孤儿"文件
+    # （不在任何清单里，永远删不掉）。这里直接扫一遍产物目录，凡是不在本次
+    # 清单里的文件一律清掉。
     for dirpath, dirnames, filenames in os.walk(out, topdown=False):
-        if dirpath != out and not dirnames and not filenames:
+        for fn in filenames:
+            full = os.path.join(dirpath, fn)
+            rel = os.path.relpath(full, out).replace('\\', '/')
+            if rel not in current:
+                try:
+                    os.remove(full)
+                    removed.append(rel)
+                except OSError:
+                    pass
+        if dirpath != out and not os.listdir(dirpath):
             try:
                 os.rmdir(dirpath)
             except OSError:
