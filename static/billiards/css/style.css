@@ -151,32 +151,71 @@ html, body {
 .cue-cards { display: flex; gap: 12px; flex-wrap: wrap; }
 .cue-card {
   flex: 1;
-  min-width: 170px;
+  min-width: 168px;
   max-width: 250px;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 7px;
   background: rgba(255, 255, 255, .05);
   border: 1px solid rgba(255, 255, 255, .1);
   border-radius: 12px;
-  padding: 10px 14px;
+  padding: 10px 12px 11px;
   cursor: pointer;
   transition: border-color .2s, background .2s, transform .12s;
 }
 .cue-card:hover { background: rgba(255, 255, 255, .09); }
 .cue-card:active { transform: scale(.97); }
 .cue-card.active { border-color: #f0b429; background: rgba(240, 180, 41, .12); }
-.cue-swatch {
-  width: 40px;
-  height: 8px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  border: 1px solid rgba(0, 0, 0, .4);
+
+/* 整根杆的贴图条：素材是 16:1，铺满卡片宽度正好是一条细杆 */
+.cue-strip {
+  height: 20px;
+  border-radius: 6px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  background-color: rgba(0, 0, 0, .18);
 }
-.cue-meta { flex: 1; }
-.cue-name { font-size: 13px; font-weight: 600; }
-.cue-desc { font-size: 11px; color: #93a2b4; margin-top: 2px; }
-.cue-star { font-size: 11px; color: #f0b429; letter-spacing: 1px; }
+.cue-strip.plain { background-size: cover; }
+
+.cue-row { display: flex; align-items: baseline; gap: 8px; }
+.cue-name { font-size: 13px; font-weight: 600; flex: 1; }
+.cue-desc { font-size: 11px; color: #93a2b4; }
+.cue-star { font-size: 11px; color: #f0b429; letter-spacing: 1px; flex-shrink: 0; }
+
+/* ---------- 球桌皮肤 ---------- */
+#tableSelect {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+}
+.table-cards { display: flex; gap: 12px; flex-wrap: wrap; }
+.table-card {
+  width: 178px;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 12px;
+  padding: 8px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s, transform .12s;
+}
+.table-card:hover { background: rgba(255, 255, 255, .09); }
+.table-card:active { transform: scale(.97); }
+.table-card.active { border-color: #f0b429; background: rgba(240, 180, 41, .12); }
+.table-thumb {
+  height: 84px;
+  border-radius: 8px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+.table-name {
+  font-size: 12px;
+  color: #cbd6e4;
+  text-align: center;
+  margin-top: 6px;
+}
+.table-card.active .table-name { color: #f0d89a; }
 
 /* ---------- 结算弹窗 ---------- */
 #overlay {

@@ -62,15 +62,26 @@ window.BK = window.BK || {};
   // depth 2 = 目标球撞库反弹一层 + 白球分离方向线
   // depth 3 = 目标球两层反弹 + 白球分离撞库反弹
   // cheat: true 的杆开启「必进袋口高亮」，判定逻辑见 js/supercue.js
+  // img: 有贴图就用贴图渲染，没有就走 render.js 里的程序化皮肤（skin 字段）
   C.CUES = [
-    { name: '练习木杆', power: 1.0, depth: 1, star: '★☆☆', skin: 0,
+    { id: 'classic', name: '经典木杆', power: 1.0, depth: 1, star: '★☆☆', skin: 0,
+      img: 'assets/cue/cue_classic.png',
       desc: '力度 ×1.0 · 准线 基础' },
-    { name: '进阶碳杆', power: 1.2, depth: 2, star: '★★☆', skin: 1,
+    { id: 'blackgold', name: '黑金球杆', power: 1.2, depth: 2, star: '★★☆', skin: 1,
+      img: 'assets/cue/cue_black_gold.png',
       desc: '力度 ×1.2 · 准线 撞库反弹' },
-    { name: '大师金杆', power: 1.42, depth: 3, star: '★★★', skin: 2,
+    { id: 'ruyi', name: '如意金箍杆', power: 1.42, depth: 3, star: '★★★', skin: 2,
+      img: 'assets/cue/cue_ruyi_jingu.png',
       desc: '力度 ×1.4 · 准线 双段反弹' },
-    { name: '超级杆', power: 1.45, depth: 3, star: '★★★+', skin: 3, cheat: true,
+    // 超级杆保留程序化皮肤（青色辉光），跟"外挂"的调性更配
+    { id: 'super', name: '超级杆', power: 1.45, depth: 3, star: '★★★+', skin: 3, cheat: true,
       desc: '外挂 · 高亮必进袋口' }
+  ];
+
+  // 球桌皮肤（贴图由 skins.js 按台面 2:1 精确对齐）
+  C.TABLES = [
+    { id: 'green', name: '经典绿台', file: 'assets/table/table_green.jpg' },
+    { id: 'blue', name: '深邃蓝台', file: 'assets/table/table_blue.jpg' }
   ];
 
   C.COLORS = {

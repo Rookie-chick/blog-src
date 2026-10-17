@@ -44,6 +44,7 @@
     sound: true,
     level: 1,
     cueIdx: 1,
+    tableId: 'green',   // 当前球桌皮肤
     spinX: 0,
     spinY: 0,
     spinDirty: true,
@@ -536,15 +537,22 @@
         var card = document.createElement('div');
         card.className = 'cue-card' + (S.cueIdx === idx ? ' active' : '') +
           (cue.cheat ? ' cheat' : '');
+
+        // 有贴图就整根杆铺在卡片上方；没有（超级杆）就用渐变色块兜底
+        var strip = cue.img
+          ? '<div class="cue-strip" style="background-image:url(' + cue.img + ')"></div>'
+          : '<div class="cue-strip plain" style="background:linear-gradient(90deg,' +
+              SWATCH[idx] + ' 0 60%, #3f2614 60% 100%)"></div>';
+
         card.innerHTML =
-          '<div class="cue-swatch" style="background:linear-gradient(90deg,' +
-            SWATCH[idx] + ' 0 55%, #3f2614 55% 100%)"></div>' +
-          '<div class="cue-meta">' +
+          strip +
+          '<div class="cue-row">' +
             '<div class="cue-name">' + cue.name +
               (cue.cheat ? '<span class="cheat-tag">外挂</span>' : '') + '</div>' +
-            '<div class="cue-desc">' + cue.desc + '</div>' +
+            '<div class="cue-star">' + cue.star + '</div>' +
           '</div>' +
-          '<div class="cue-star">' + cue.star + '</div>';
+          '<div class="cue-desc">' + cue.desc + '</div>';
+
         card.addEventListener('click', function () {
           S.cueIdx = idx;
           buildCueCards();
@@ -557,6 +565,30 @@
         host.appendChild(card);
       })(i);
     }
+  }
+
+  /* ---------------- 球桌皮肤 ---------------- */
+
+  var TABLE_KEY = 'bk-table';
+
+  function buildTableCards() {
+    var host = document.getElementById('tableCards');
+    if (!host) return;
+    host.innerHTML = '';
+    BK.skins.tables.forEach(function (t) {
+      var card = document.createElement('div');
+      card.className = 'table-card' + (S.tableId === t.id ? ' active' : '');
+      card.innerHTML =
+        '<div class="table-thumb" style="background-image:url(' + t.img.src + ')"></div>' +
+        '<div class="table-name">' + t.name + '</div>';
+      card.addEventListener('click', function () {
+        S.tableId = t.id;
+        try { localStorage.setItem(TABLE_KEY, t.id); } catch (e) {}
+        buildTableCards();
+        setMsg('已换 ' + t.name);
+      });
+      host.appendChild(card);
+    });
   }
 
   /* ---------------- 主循环 ---------------- */
@@ -633,7 +665,9 @@
       superPockets: S.superPockets,
       superFocus: S.superFocus,
       charging: S.charging,
-      power: S.power
+      power: S.power,
+      tableImg: BK.skins.tableImage(S.tableId),
+      cueImg: BK.skins.cueImage(C.CUES[S.cueIdx])
     });
 
     var pct = Math.round(S.power * 100);
@@ -648,7 +682,14 @@
     requestAnimationFrame(loop);
   }
 
+  BK.skins.init();
+  try {
+    var savedTable = localStorage.getItem(TABLE_KEY);
+    if (savedTable && BK.skins.tableById(savedTable)) S.tableId = savedTable;
+  } catch (e) {}
+
   buildCueCards();
+  buildTableCards();
   restart();
   requestAnimationFrame(loop);
 })();

@@ -103,7 +103,13 @@ window.BK = window.BK || {};
 
   /* ---------------- 球桌 ---------------- */
 
-  Renderer.prototype.drawTable = function (ctx) {
+  Renderer.prototype.drawTable = function (ctx, tableImg) {
+    // 有贴图就用贴图（skins.js 已按台面 2:1 对齐，库边位置与物理一致）
+    if (tableImg) {
+      BK.skins.drawTableImage(ctx, tableImg);
+      return;
+    }
+
     var W = C.W, H = C.H;
 
     // 木框
@@ -317,7 +323,7 @@ window.BK = window.BK || {};
     { shaft: '#8ef2ff', butt: '#10222e', tip: '#ff4d6d', ring: '#43e8ff', glow: '#43e8ff' }
   ];
 
-  Renderer.prototype.drawCue = function (ctx, cx, cy, angle, pull, skin) {
+  Renderer.prototype.drawCue = function (ctx, cx, cy, angle, pull, skin, cueImg) {
     var sk = CUE_SKINS[skin] || CUE_SKINS[0];
     var len = 250, w = 6.5;
     var back = angle + PI;
@@ -325,6 +331,12 @@ window.BK = window.BK || {};
     var ux = Math.cos(back), uy = Math.sin(back);
 
     var x0 = cx + ux * gap, y0 = cy + uy * gap;
+
+    // 有球杆贴图就直接贴（杆头锚在 x0,y0，杆身朝后）
+    if (cueImg) {
+      BK.skins.drawCueImage(ctx, cueImg, x0, y0, angle);
+      return;
+    }
     var xm = cx + ux * (gap + len * 0.46), ym = cy + uy * (gap + len * 0.46);
     var x1 = cx + ux * (gap + len), y1 = cy + uy * (gap + len);
 
@@ -693,7 +705,7 @@ window.BK = window.BK || {};
     this.lastT = now;
 
     ctx.clearRect(0, 0, C.W, C.H);
-    this.drawTable(ctx);
+    this.drawTable(ctx, view.tableImg);
 
     var i;
     // 先画静止的球，再画白球
@@ -731,7 +743,8 @@ window.BK = window.BK || {};
     }
 
     if (view.showCue && cue.active && !view.ballInHand) {
-      this.drawCue(ctx, cue.x, cue.y, view.aimAngle, view.pull || 0, view.cueSkin || 0);
+      this.drawCue(ctx, cue.x, cue.y, view.aimAngle, view.pull || 0,
+        view.cueSkin || 0, view.cueImg);
     }
   };
 
