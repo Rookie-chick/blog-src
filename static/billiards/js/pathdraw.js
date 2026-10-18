@@ -216,7 +216,10 @@ window.BK = window.BK || {};
       if (!o.active || o === this.ball || o.isCue) continue;
       if (segCircle(x0, y0, x1, y1, o.x, o.y, R)) {
         if (this.touched.indexOf(o) < 0) this.touched.push(o);
-        if (!ev.firstContact) {
+        // 只有白球的路线才能产生"首触"。
+        // 目标球自己飞出去擦到别人，那叫连带碰撞，不是白球碰到的第一颗球 ——
+        // 之前把它记成 firstContact，会出现"画的是 1 号球，判定却说你碰到了 9 号球"。
+        if (this.ball.isCue && !ev.firstContact) {
           ev.firstContact = o;
           if (world.onHit) world.onHit(90);
         }

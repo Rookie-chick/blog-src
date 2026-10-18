@@ -54,7 +54,11 @@ window.BK = window.BK || {};
     return out;
   };
 
-  Rules.prototype.resolve = function (world, p) {
+  // opts.cheat：外挂杆（路径绘制）出手时，豁免"击球后无球进袋且无球碰库"。
+  // 球是玩家手画路线走过去的，要他"顺手碰一下库"没有意义；
+  // 但白球落袋、空杆、先碰到别人的球这些照判不误。
+  Rules.prototype.resolve = function (world, p, opts) {
+    opts = opts || {};
     var ev = world.ev;
     var eight = world.balls[8];
     var res = {
@@ -108,7 +112,7 @@ window.BK = window.BK || {};
       if (targets.indexOf(fc.num) < 0) {
         res.foul = true;
         res.msg = '首先碰到的不是自己的球';
-      } else if (ev.potted.length === 0 && !ev.cushionAfterContact) {
+      } else if (ev.potted.length === 0 && !ev.cushionAfterContact && !opts.cheat) {
         res.foul = true;
         res.msg = '击球后无球进袋且无球碰库';
       }

@@ -261,7 +261,10 @@
     return out;
   }
 
-  /** 画完就把"会不会犯规"算出来，省得按了执行才发现被判 */
+  /**
+   * 犯规预警。
+   * 外挂杆已经豁免了"无进球无碰库"，所以现在只剩一种真犯规：什么都没碰到。
+   */
   function predictFoul() {
     if (!S.paths.length) return null;
 
@@ -269,35 +272,27 @@
     var i, k;
 
     for (i = 0; i < S.paths.length; i++) {
-      var end = S.paths[i].path.pts[S.paths[i].path.pts.length - 1];
+      var pts = S.paths[i].path.pts;
+      var end = pts[pts.length - 1];
       for (k = 0; k < C.POCKETS.length; k++) {
         if (U.dist(end.x, end.y, C.POCKETS[k].x, C.POCKETS[k].y) < cap) {
-          return { foul: false, text: '有球会落袋 · 不会犯规' };
+          return { foul: false, text: ballLabel(S.paths[i].num) + ' 会落袋' };
         }
       }
     }
 
-    var cue = pathEntry(0);
-    if (cue) {
-      var c = scanPath(cue.path);
-      if (c.contact && c.cushion) {
-        return { foul: false, text: '白球碰球后又到库边 · 不会犯规' };
-      }
-    }
-
+    // 画了目标球，这一杆就等于打到它，不算空杆
     for (i = 0; i < S.paths.length; i++) {
-      if (S.paths[i].num !== 0 && scanPath(S.paths[i].path).cushion) {
-        return { foul: false, text: '有球碰库了 · 不会犯规' };
+      if (S.paths[i].num !== 0) {
+        return { foul: false, text: '会打到 ' + S.paths[i].num + ' 号球 · 不判犯规' };
       }
     }
 
-    if (!cue) {
-      return { foul: true, text: '没画白球 · 白球不动也不碰库，会判犯规' };
+    var cue = pathEntry(0);
+    if (cue && scanPath(cue.path).contact) {
+      return { foul: false, text: '白球会碰到球 · 不判犯规' };
     }
-    if (!scanPath(cue.path).contact) {
-      return { foul: true, text: '白球这条线一颗球都没碰到 · 会判「空杆」' };
-    }
-    return { foul: true, text: '不进球也不碰库 · 会被判犯规（把白球路线拉到库边）' };
+    return { foul: true, text: '白球这一路没碰到任何球 · 会判「空杆」' };
   }
 
   /**
@@ -482,7 +477,9 @@
   function onShotEnd() {
     var p = rules.turn;
     var wasBreak = (rules.phase === 'breaking');
-    var r = rules.resolve(world, p);
+    // 只有"你 + 外挂杆"这一组合才享受豁免，电脑照常判
+    var cheatShot = (p === 0) && !!C.CUES[S.cueIdx].cheat;
+    var r = rules.resolve(world, p, { cheat: cheatShot });
 
     // 白球复位（若落袋）
     if (world.ev.cueScratch) {
@@ -925,6 +922,14 @@
         cur.finishRun(world);
         S.runner.i++;
         if (S.runner.i >= S.runner.list.length) {
+          // 只画了目标球、没画白球：这一杆就等于"打到了它"，把首触补上，
+          // 免得被判成"空杆，未碰到任何球"
+          if (!world.ev.firstContact) {
+            for (var ri = 0; ri < S.runner.list.length; ri++) {
+              var rb = S.runner.list[ri].ball;
+              if (!rb.isCue) { world.ev.firstContact = rb; break; }
+            }
+          }
           S.paths = [];
           S.runner.list = [];
           S.runner.i = 0;
