@@ -30,7 +30,8 @@
     btnRestart: document.getElementById('btnRestart'),
     ovBtn: document.getElementById('ovBtn'),
     pathPanel: document.getElementById('pathPanel'),
-    ppTarget: document.getElementById('ppTarget'),
+    ppStepCue: document.getElementById('ppStepCue'),
+    ppStepObj: document.getElementById('ppStepObj'),
     ppHint: document.getElementById('ppHint'),
     ppOk: document.getElementById('ppOk'),
     ppRedraw: document.getElementById('ppRedraw'),
@@ -55,8 +56,11 @@
     spinY: 0,
     spinDirty: true,
     pred: null,
-    path: null,         // 当前正在画/正在走的路径（BK.path.Path）
-    pathTarget: null,   // 瞄准线命中的球，路径就是给它画的
+    pathCue: null,      // 白球路线
+    pathObj: null,      // 目标球路线
+    drawStep: null,     // 'cue' | 'obj'：当前正在画哪一条
+    pathTarget: null,   // 瞄准线命中的球
+    runner: { list: [], i: 0 },   // 执行队列：白球先走，目标球后走
     lastTs: 0,
     strike: 0,       // 击球瞬间球杆前推动画剩余时间
     strikeFrom: 0    // 前推起始拉距
@@ -91,14 +95,18 @@
     } else if (S.phase === 'ai') {
       el.hint.textContent = '电脑瞄准中，看它的杆';
     } else if (S.phase === 'pathdraw') {
-      el.hint.textContent = '按住拖动，画出这颗球的走位路线 · Esc 取消';
+      el.hint.textContent = (S.drawStep === 'cue' ? '① 画白球路线' : '② 画目标球路线') +
+        ' · 按住拖动，松开结束 · Esc 取消';
+    } else if (S.phase === 'pathstep2') {
+      el.hint.textContent = '① 白球路线已就绪 · 现在把鼠标移到 ' +
+        (S.pathTarget ? S.pathTarget.num : '') + ' 号球上，画它的路线';
     } else if (S.phase === 'pathready') {
-      el.hint.textContent = '路线画好了 · 确认执行 / 重画 / 取消';
+      el.hint.textContent = '两条路线都好了 · 确认后依次执行：白球 → 目标球';
     } else if (S.phase === 'pathexec') {
       el.hint.textContent = '沿路线运动中 —— 无视碰撞与摩擦';
     } else if (S.pathTarget) {
       el.hint.textContent = '超级杆 · 已锁定 ' + S.pathTarget.num +
-        ' 号球 · 把鼠标移到球上按住拖动，画它的路线';
+        ' 号球 · 从白球上按住，先画白球路线';
     } else if (S.aimNudge !== 0) {
       el.hint.textContent = '微调 ' + nudgeText() +
         ' · 滚轮 ±0.3°（Shift ±0.05°）· 按 R 归零';
@@ -209,113 +217,222 @@
 
   var ppPct = -1;
 
+  function pathOf(step) {
+    return step === 'cue' ? S.pathCue : S.pathObj;
+  }
+
+  function setPathOf(step, p) {
+    if (step === 'cue') S.pathCue = p; else S.pathObj = p;
+  }
+
+  function stepDone(step) {
+    var p = pathOf(step);
+    return !!(p && p.state !== 'drawing');
+  }
+
   /**
    * 面板状态同步。
-   * 按钮可用性只看 S.phase：画的过程中只能取消，画完了才能确认，
-   * 执行中全部锁死 —— 这样"重复触发"从 UI 层就不可能发生。
+   * 可见性只看数据（有没有路线 / 有没有锁定目标），不看 phase ——
+   * 之前用 phase 判断，执行结束 phase 被 onShotEnd 改掉后分支再也进不来，
+   * 面板就赖在屏幕上不走了。
    */
+  // 沿路线采样，返回值：有没有碰到球、碰球之后有没有再到库边
+  function scanPath(path) {
+    var pts = path.pts;
+    var hitAt = -1, i, j;
+
+    for (i = 0; i < pts.length && hitAt < 0; i++) {
+      for (j = 1; j < world.balls.length; j++) {
+        var b = world.balls[j];
+        if (!b.active || b === path.ball) continue;
+        if (U.dist(pts[i].x, pts[i].y, b.x, b.y) < C.BALL_R * 2) { hitAt = i; break; }
+      }
+    }
+
+    var out = { contact: hitAt >= 0, cushion: false, potted: null };
+    if (hitAt < 0) return out;
+
+    for (i = hitAt; i < pts.length; i++) {
+      if (pts[i].x < C.PX0 || pts[i].x > C.PX1 ||
+          pts[i].y < C.PY0 || pts[i].y > C.PY1) {
+        out.cushion = true;
+        break;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * 画完就先把"会不会犯规"算出来告诉玩家。
+   * 与其让他确认完才发现被判犯规，不如在按下去之前就提醒。
+   */
+  function predictFoul() {
+    if (!S.pathCue || !S.pathObj) return null;
+
+    var cap = C.POCKET_R - C.BALL_R * 0.3;
+    var end = S.pathObj.pts[S.pathObj.pts.length - 1];
+    for (var i = 0; i < C.POCKETS.length; i++) {
+      if (U.dist(end.x, end.y, C.POCKETS[i].x, C.POCKETS[i].y) < cap) {
+        return { foul: false, text: '目标球会落袋 · 不会犯规' };
+      }
+    }
+
+    var cue = scanPath(S.pathCue);
+    if (!cue.contact) {
+      return { foul: true, text: '白球这条线一颗球都没碰到 · 会判「空杆」' };
+    }
+    if (cue.cushion) {
+      return { foul: false, text: '白球碰球后又到库边 · 不会犯规' };
+    }
+    if (scanPath(S.pathObj).cushion) {
+      return { foul: false, text: '目标球碰库了 · 不会犯规' };
+    }
+    return { foul: true, text: '不进球也不碰库 · 会被判犯规（把白球路线拉到库边就行）' };
+  }
+
   function syncPathPanel() {
     var panel = el.pathPanel;
     if (!panel) return;
 
-    // 可见性只看数据，不看 phase。
-    // 之前这里带上了 phase === 'pathexec'，结果路径走完、phase 被 onShotEnd
-    // 改成 'shooting' 之后，这个分支再也进不来，面板就赖在屏幕上了。
-    var visible = !!(S.pathTarget || S.path);
+    var visible = !!(S.pathTarget || S.pathCue || S.pathObj);
     panel.classList.toggle('hidden', !visible);
     if (!visible) return;
 
-    var tgt = S.pathTarget;
-    el.ppTarget.textContent = tgt ? ('目标 #' + tgt.num) : '未锁定目标';
+    // 两步进度条
+    var drawingCue = S.phase === 'pathdraw' && S.drawStep === 'cue';
+    var drawingObj = S.phase === 'pathdraw' && S.drawStep === 'obj';
+    if (el.ppStepCue) {
+      el.ppStepCue.className = 'pp-step' +
+        (stepDone('cue') ? ' done' : '') + (drawingCue ? ' active' : '');
+      el.ppStepCue.textContent = '① 白球';
+    }
+    if (el.ppStepObj) {
+      el.ppStepObj.className = 'pp-step' +
+        (stepDone('obj') ? ' done' : '') + (drawingObj ? ' active' : '');
+      el.ppStepObj.textContent = '② ' +
+        (S.pathTarget ? S.pathTarget.num + ' 号球' : '目标球');
+    }
 
     var running = S.phase === 'pathexec';
     var ready = S.phase === 'pathready';
-    var drawing = S.phase === 'pathdraw';
 
-    el.ppOk.disabled = !ready;
-    el.ppRedraw.disabled = !(drawing || ready);
+    // 只有两条路线都画好才能确认 —— 白球那条不是可选项，
+    // 它就是"击球后碰库"这条规则能成立的前提
+    el.ppOk.disabled = !(ready && stepDone('cue') && stepDone('obj'));
+    el.ppRedraw.disabled = !(stepDone('cue') || stepDone('obj') || drawingCue || drawingObj);
     el.ppCancel.disabled = running;
 
-    var len = (S.path && S.path.total) ? Math.round(S.path.total) : 0;
+    var cueLen = (S.pathCue && S.pathCue.total) ? Math.round(S.pathCue.total) : 0;
+    var objLen = (S.pathObj && S.pathObj.total) ? Math.round(S.pathObj.total) : 0;
+
     if (running) {
-      var pct = Math.round((S.path ? S.path.progress() : 0) * 100);
+      var p = S.runner.list[S.runner.i];
+      var pct = p ? Math.round(p.progress() * 100) : 100;
+      var who = p && p.ball === world.cue() ? '白球' : '目标球';
       if (pct !== ppPct) {
         ppPct = pct;
-        el.ppHint.textContent = '沿路线运动中 · ' + pct + '%（无视碰撞与摩擦）';
+        el.ppHint.textContent = who + '沿路线运动中 · ' + pct +
+          '%（无视碰撞与摩擦）';
       }
+    } else if (drawingCue) {
+      el.ppHint.textContent = '① 画白球路线 · 已画 ' + cueLen + 'px · 松开结束';
+    } else if (drawingObj) {
+      el.ppHint.textContent = '② 画目标球路线 · 已画 ' + objLen + 'px · 松开结束';
     } else if (ready) {
-      el.ppHint.textContent = '路线 ' + len + 'px · 确认后球会严格沿这条线走';
-    } else if (drawing) {
-      el.ppHint.textContent = '按住拖动中 · 已画 ' + len + 'px · 松开结束';
+      var v = predictFoul();
+      el.ppHint.textContent = '两条路线就绪（白球 ' + cueLen + 'px / 球 ' +
+        objLen + 'px）· ' + (v ? v.text : '确认后先走白球，再走目标球');
+      el.ppHint.className = 'pp-hint' + (v && v.foul ? ' warn' : (v ? ' ok' : ''));
+    } else if (stepDone('cue')) {
+      el.ppHint.textContent = '① 白球 ' + cueLen + 'px 已就绪 · 现在把鼠标移到 ' +
+        (S.pathTarget ? S.pathTarget.num : '') + ' 号球上，按住画它的路线';
     } else {
-      el.ppHint.textContent = tgt
-        ? ('把鼠标移到 ' + tgt.num + ' 号球上，按住拖动画路线')
-        : '把瞄准线对准一颗球';
+      el.ppHint.textContent = '从白球上按住开始拖，先画白球怎么走';
     }
   }
 
   function enterDraw(e) {
-    var tgt = S.pathTarget;
-    if (!tgt || !tgt.active) return false;
+    var isCue = !S.pathCue;
+    var ball = isCue ? world.cue() : S.pathTarget;
+    if (!ball || !ball.active) return false;
 
     var p = renderer.toLocal(e);
-    // 起点必须落在目标球附近，否则画出来的线第一条就是一段莫名其妙的跳线
-    if (U.dist(p.x, p.y, tgt.x, tgt.y) > BK.path.START_R) {
-      setMsg('把鼠标移到 ' + tgt.num + ' 号球上，再按住拖动');
+    if (U.dist(p.x, p.y, ball.x, ball.y) > BK.path.START_R) {
+      setMsg(isCue
+        ? '从白球上按住开始画'
+        : ('把鼠标移到 ' + ball.num + ' 号球上，再按住拖动'));
       return false;
     }
 
-    S.path = new BK.path.Path(tgt);
+    setPathOf(isCue ? 'cue' : 'obj', new BK.path.Path(ball));
+    S.drawStep = isCue ? 'cue' : 'obj';
     S.phase = 'pathdraw';
     S.charging = false;
     S.power = 0;
     ppPct = -1;
     syncPathPanel();
     updateHint();
-    setMsg('开始绘制 ' + tgt.num + ' 号球的路线');
+    setMsg(isCue ? '① 画白球路线' : ('② 画 ' + ball.num + ' 号球的路线'));
     return true;
   }
 
   function addDrawPoint(e) {
-    if (!S.path || S.phase !== 'pathdraw') return;
-    var p = renderer.toLocal(e);
-    if (S.path.addPoint(p.x, p.y)) syncPathPanel();
+    if (S.phase !== 'pathdraw') return;
+    var p = pathOf(S.drawStep);
+    if (!p) return;
+    var loc = renderer.toLocal(e);
+    if (p.addPoint(loc.x, loc.y)) syncPathPanel();
   }
 
   function finishDraw() {
-    if (!S.path || S.phase !== 'pathdraw') return;
+    if (S.phase !== 'pathdraw') return;
+    var step = S.drawStep;
+    var p = pathOf(step);
+    if (!p) return;
 
-    if (!S.path.finish()) {
-      // 路径太短：直接丢弃，回到瞄准，等玩家重新按下去画
-      var tgt = S.path.ball;
-      S.path = null;
-      S.phase = 'aim';
-      S.pathTarget = tgt;
+    if (!p.finish()) {
+      // 路径太短：这一笔作废，回到这一步的画前状态
+      setPathOf(step, null);
+      S.phase = step === 'cue' ? 'aim' : 'pathstep2';
+      ppPct = -1;
       syncPathPanel();
       updateHint();
       setMsg('路径太短（至少 ' + BK.path.MIN_LEN + 'px）· 重新画一条');
       return;
     }
 
-    S.phase = 'pathready';
+    if (step === 'cue') {
+      S.phase = 'pathstep2';
+      setMsg('① 白球路线就绪 · 接着画 ' + S.pathTarget.num + ' 号球的路线');
+    } else {
+      S.phase = 'pathready';
+      setMsg('两条路线就绪 · 点「确认」依次执行');
+    }
+    ppPct = -1;
     syncPathPanel();
     updateHint();
-    setMsg('路线就绪 · 点「确认」让球沿这条线走');
   }
 
   function confirmPath() {
-    if (!S.path || S.phase !== 'pathready') return;
-    var ball = S.path.ball;
+    if (S.phase !== 'pathready') return;
+    if (!stepDone('cue') || !stepDone('obj')) return;
 
-    // 目标球在这期间被别的途径弄没了（理论上不会，防御一下）
-    if (!ball || !ball.active) {
-      cancelPath('目标球已不在台面，绘制已取消');
+    var cueBall = world.cue();
+    var objBall = S.pathObj.ball;
+    if (!cueBall.active || !objBall.active) {
+      cancelPath('球已不在台面，绘制已取消');
       return;
     }
 
     BK.Audio.init();
     BK.Audio.cue(0.85);
-    S.path.start();
+
+    // 先走白球，再走目标球 —— 顺序不能反，
+    // 否则"白球先碰到球"这个事件就丢了
+    S.runner.list = [S.pathCue, S.pathObj];
+    S.runner.i = 0;
+    S.pathCue.start();
+
     S.phase = 'pathexec';
     S.charging = false;
     S.power = 0;
@@ -323,12 +440,16 @@
     resetSpin();
     syncPathPanel();
     updateHint();
-    setMsg('沿路线运动中');
+    setMsg('白球出发');
   }
 
   function cancelPath(msg) {
     if (S.phase === 'pathexec') return;   // 已经开始走了，不能中途取消
-    S.path = null;
+    S.pathCue = null;
+    S.pathObj = null;
+    S.drawStep = null;
+    S.runner.list = [];
+    S.runner.i = 0;
     S.phase = 'aim';
     ppPct = -1;
     syncPathPanel();
@@ -338,8 +459,15 @@
 
   function redrawPath() {
     if (S.phase === 'pathexec') return;
-    S.path = null;
-    S.phase = 'aim';
+    // 重画 = 从"还没画完的那一步"重新开始；两步都画好了就退回第二步
+    if (!stepDone('cue')) {
+      S.pathCue = null;
+      S.phase = 'aim';
+    } else {
+      S.pathObj = null;
+      S.phase = 'pathstep2';
+    }
+    S.drawStep = null;
     ppPct = -1;
     syncPathPanel();
     updateHint();
@@ -347,10 +475,16 @@
   }
 
   function clearPathState() {
-    S.path = null;
+    S.pathCue = null;
+    S.pathObj = null;
+    S.drawStep = null;
     S.pathTarget = null;
+    S.runner.list = [];
+    S.runner.i = 0;
     ppPct = -1;
-    if (S.phase === 'pathdraw' || S.phase === 'pathready') S.phase = 'aim';
+    if (S.phase === 'pathdraw' || S.phase === 'pathstep2' || S.phase === 'pathready') {
+      S.phase = 'aim';
+    }
     syncPathPanel();
   }
 
@@ -555,7 +689,7 @@
       return;
     }
     // 超级杆：按下即进入绘制，不走蓄力
-    if (S.phase === 'aim' && S.pathTarget) {
+    if ((S.phase === 'aim' || S.phase === 'pathstep2') && S.pathTarget) {
       enterDraw(e);
       return;
     }
@@ -579,7 +713,8 @@
 
   window.addEventListener('keydown', function (e) {
     if (e.code === 'Escape') {
-      if (S.phase === 'pathdraw' || S.phase === 'pathready') {
+      if (S.phase === 'pathdraw' || S.phase === 'pathstep2' ||
+          S.phase === 'pathready') {
         cancelPath();
         return;
       }
@@ -816,33 +951,33 @@
     var cueCfg = C.CUES[S.cueIdx];
     var cheatOn = !!cueCfg.cheat;
 
-    if (S.phase === 'pathexec' && S.path) {
-      if (S.path.step(world, dt)) {
-        S.path.finishRun(world);
-        S.path = null;
-        S.pathTarget = null;
-        syncPathPanel();
-        onShotEnd();          // 交回原来的回合结算
-      } else {
-        // 执行途中每帧刷一次面板进度（内部按整数百分比节流，不会每帧写 DOM）
-        syncPathPanel();
+    if (S.phase === 'pathexec' && S.runner.i < S.runner.list.length) {
+      var cur = S.runner.list[S.runner.i];
+      if (cur.step(world, dt)) {
+        cur.finishRun(world);
+        S.runner.i++;
+        if (S.runner.i >= S.runner.list.length) {
+          S.pathCue = null;
+          S.pathObj = null;
+          S.pathTarget = null;
+          syncPathPanel();
+          onShotEnd();          // 交回原来的回合结算
+        } else {
+          S.runner.list[S.runner.i].start();
+          setMsg('白球走完 · 目标球出发');
+        }
       }
-    } else if (cheatOn && S.phase === 'aim' && !S.ballInHand) {
-      // 瞄准线扫到哪颗球，就锁定哪颗球当绘制目标
+      syncPathPanel();          // 内部按整数百分比节流，不会每帧写 DOM
+    } else if (cheatOn && S.phase === 'aim' && !S.ballInHand && !S.pathCue) {
+      // 白球路线画好之后目标就冻结，不再跟着鼠标改
       var tgt = BK.path.pickTarget(world, S.aimAngle);
       if (tgt !== S.pathTarget) {
         S.pathTarget = tgt;
-        if (S.path) { S.path = null; }   // 目标换了，旧路线作废
         syncPathPanel();
         updateHint();
       }
     } else if (!cheatOn || S.ballInHand || S.phase === 'ai') {
-      // 换回普通杆 / 摆球 / 电脑回合：清空一切绘制状态
-      if (S.pathTarget || S.path) {
-        S.pathTarget = null;
-        S.path = null;
-        syncPathPanel();
-      }
+      if (S.pathTarget || S.pathCue || S.pathObj) clearPathState();
     }
 
     // 球杆拉距：蓄力时后退；AI 瞄准时小幅预备；击球瞬间冲向白球
@@ -868,7 +1003,7 @@
       cueSkin: C.CUES[S.cueIdx].skin,
       ballInHand: S.phase === 'ballinhand',
       ballInHandValid: validCuePos(cue.x, cue.y),
-      path: S.path,
+      paths: [S.pathCue, S.pathObj],
       tableImg: BK.skins.tableImage(S.tableId),
       cueImg: BK.skins.cueImage(C.CUES[S.cueIdx])
     });

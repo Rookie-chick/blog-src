@@ -550,13 +550,14 @@ window.BK = window.BK || {};
 
   // 画玩家画出来的路线。绘制中用青色流动虚线，执行中压暗，
   // 让"球正沿着这条线走"这件事一眼能看出来。
-  Renderer.prototype.drawPath = function (ctx, path, opts) {
+  Renderer.prototype.drawPath = function (ctx, path) {
     if (!path || !path.pts || path.pts.length < 2) return;
-    opts = opts || {};
 
     var pts = path.pts;
     var running = path.state === 'running';
     var now = Date.now();
+    // 白球路线偏蓝、目标球路线偏青，一眼分得清哪条是哪条
+    var tone = (path.ball && path.ball.isCue) ? '120, 200, 255' : '67, 232, 255';
 
     var trace = function () {
       ctx.beginPath();
@@ -570,21 +571,21 @@ window.BK = window.BK || {};
     ctx.lineJoin = 'round';
 
     // 底层辉光：让线在深色台呢上也能浮起来
-    ctx.strokeStyle = running ? 'rgba(67, 232, 255, .07)' : 'rgba(67, 232, 255, .15)';
+    ctx.strokeStyle = 'rgba(' + tone + ', ' + (running ? '.07' : '.15') + ')';
     ctx.lineWidth = 10;
     trace();
 
     // 主线
     ctx.setLineDash([9, 8]);
     ctx.lineDashOffset = -(now * 0.035) % 68;
-    ctx.strokeStyle = running ? 'rgba(67, 232, 255, .35)' : 'rgba(67, 232, 255, .92)';
+    ctx.strokeStyle = 'rgba(' + tone + ', ' + (running ? '.35' : '.92') + ')';
     ctx.lineWidth = 2.2;
     trace();
 
     // 已走过的段：实心高亮，和虚线形成对比，进度一目了然
     if (running && path.dist > 1) {
       ctx.setLineDash([]);
-      ctx.strokeStyle = 'rgba(180, 250, 255, .85)';
+      ctx.strokeStyle = 'rgba(200, 250, 255, .85)';
       ctx.lineWidth = 2.6;
       ctx.beginPath();
       ctx.moveTo(pts[0].x, pts[0].y);
@@ -608,7 +609,7 @@ window.BK = window.BK || {};
     // 起点：套在球上的一圈
     var s = pts[0];
     ctx.save();
-    ctx.strokeStyle = 'rgba(67, 232, 255, .8)';
+    ctx.strokeStyle = 'rgba(' + tone + ', .8)';
     ctx.lineWidth = 1.6;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
@@ -620,7 +621,7 @@ window.BK = window.BK || {};
     var e = pts[pts.length - 1];
     var pulse = 1 + Math.sin(now * 0.006) * 0.12;
     ctx.save();
-    ctx.strokeStyle = running ? 'rgba(67, 232, 255, .45)' : 'rgba(67, 232, 255, .95)';
+    ctx.strokeStyle = 'rgba(' + tone + ', ' + (running ? '.45' : '.95') + ')';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(e.x, e.y, 9 * pulse, 0, PI * 2);
@@ -691,8 +692,12 @@ window.BK = window.BK || {};
 
     if (view.showAim && view.pred && view.canShoot) this.drawAim(ctx, view.pred);
 
-    // 超级杆的路径：画在球之上、白球之下
-    if (view.path) this.drawPath(ctx, view.path);
+    // 超级杆的路径：白球一条、目标球一条，画在球之上、白球之下
+    if (view.paths) {
+      for (var pi = 0; pi < view.paths.length; pi++) {
+        if (view.paths[pi]) this.drawPath(ctx, view.paths[pi]);
+      }
+    }
 
     // 白球（自由球时跟随鼠标）
     var cue = world.cue();

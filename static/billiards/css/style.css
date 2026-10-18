@@ -243,10 +243,27 @@ html, body {
 }
 @keyframes ppPulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
 .pp-title { font-size: 12.5px; font-weight: 600; color: #8ef2ff; letter-spacing: .6px; }
-.pp-target {
-  font-size: 11.5px; color: #93a2b4;
-  padding: 1px 8px; border-radius: 999px;
-  background: rgba(255, 255, 255, .06);
+.pp-steps { display: flex; gap: 6px; }
+.pp-step {
+  font-size: 11px;
+  padding: 1.5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  color: #7f8d9c;
+  background: rgba(255, 255, 255, .04);
+  transition: color .18s, border-color .18s, background .18s;
+}
+.pp-step.done {
+  color: #8ef2ff;
+  border-color: rgba(67, 232, 255, .45);
+  background: rgba(67, 232, 255, .12);
+}
+.pp-step.active {
+  color: #0b1219;
+  background: #43e8ff;
+  border-color: #43e8ff;
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(67, 232, 255, .5);
 }
 .pp-actions { margin-left: auto; display: flex; gap: 7px; pointer-events: auto; }
 .pp-btn {
@@ -268,6 +285,8 @@ html, body {
 .pp-btn.primary:hover:not(:disabled) { background: rgba(67, 232, 255, .28); }
 .pp-btn:disabled { opacity: .3; cursor: not-allowed; }
 .pp-hint { margin-top: 5px; font-size: 11.5px; color: #93a2b4; }
+.pp-hint.ok { color: #62d98b; }
+.pp-hint.warn { color: #ffb020; }
 
 @media (max-width: 640px) {
   .pp-hint { display: none; }
@@ -322,8 +341,3 @@ html, body {
   vertical-align: 1px;
   letter-spacing: 0;
 }
-
-/* ---------- 返回博客（myblog 集成时追加） ---------- */
-.back-home { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.07); text-align: center; }
-.back-home a { display: inline-block; font-size: 12.5px; color: #7f8fa3; text-decoration: none; padding: 4px 12px; border-radius: 999px; transition: color .2s, background .2s; }
-.back-home a:hover { color: #f0b429; background: rgba(255,255,255,.06); }
