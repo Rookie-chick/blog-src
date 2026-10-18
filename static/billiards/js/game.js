@@ -101,7 +101,7 @@
       el.hint.textContent = '已画 ' + S.paths.length +
         ' 颗球 · 点「执行」让它们动起来 · 或继续右键画别的';
     } else if (C.CUES[S.cueIdx].cheat) {
-      el.hint.textContent = '超级杆 · 右键点在球上拖动画路线（白球也能画）· 左键照常击打';
+      el.hint.textContent = '超级杆 · 按住 Shift + 左键在球上拖动 = 画路线 · 直接左键 = 照常击打';
     } else if (S.aimNudge !== 0) {
       el.hint.textContent = '微调 ' + nudgeText() +
         ' · 滚轮 ±0.3°（Shift ±0.05°）· 按 R 归零';
@@ -262,8 +262,9 @@
   }
 
   /**
-   * 犯规预警。
-   * 外挂杆已经豁免了"无进球无碰库"，所以现在只剩一种真犯规：什么都没碰到。
+   * 结果预告。
+   * 路径模式整段豁免犯规，所以这里不再出"会被判犯规"的警告，
+   * 只告诉玩家这一杆会发生什么。
    */
   function predictFoul() {
     if (!S.paths.length) return null;
@@ -281,18 +282,12 @@
       }
     }
 
-    // 画了目标球，这一杆就等于打到它，不算空杆
     for (i = 0; i < S.paths.length; i++) {
       if (S.paths[i].num !== 0) {
         return { foul: false, text: '会打到 ' + S.paths[i].num + ' 号球 · 不判犯规' };
       }
     }
-
-    var cue = pathEntry(0);
-    if (cue && scanPath(cue.path).contact) {
-      return { foul: false, text: '白球会碰到球 · 不判犯规' };
-    }
-    return { foul: true, text: '白球这一路没碰到任何球 · 会判「空杆」' };
+    return { foul: false, text: '白球会沿路线走 · 不判犯规' };
   }
 
   /**
@@ -356,7 +351,7 @@
     var p = renderer.toLocal(e);
     var ball = ballAt(p.x, p.y);
     if (!ball) {
-      setMsg('右键要点在球上（白球也可以）');
+      setMsg('按住 Shift 点左键，点在球上开始画（白球也可以）');
       return false;
     }
 
@@ -474,12 +469,15 @@
     S.aimNudge = 0;
   }
 
-  function onShotEnd() {
+  function onShotEnd(pathMode) {
     var p = rules.turn;
     var wasBreak = (rules.phase === 'breaking');
     // 只有"你 + 外挂杆"这一组合才享受豁免，电脑照常判
     var cheatShot = (p === 0) && !!C.CUES[S.cueIdx].cheat;
-    var r = rules.resolve(world, p, { cheat: cheatShot });
+    var r = rules.resolve(world, p, {
+      cheat: cheatShot,
+      pathMode: !!pathMode && cheatShot
+    });
 
     // 白球复位（若落袋）
     if (world.ev.cueScratch) {
@@ -647,14 +645,16 @@
     e.preventDefault();
     BK.Audio.init();
 
-    // 右键：点在球上开始画它的路线（超级杆专属，白球也能画）
-    if (e.button === 2) {
+    if (e.button !== 0) return;
+
+    // 按住 Shift（或 Ctrl）再点左键 = 画球，白球也能画。
+    // 带修饰键就永远不蓄力，避免"想画结果打了一杆"。
+    if (e.shiftKey || e.ctrlKey) {
       if (C.CUES[S.cueIdx].cheat && S.phase === 'aim' && !S.ballInHand) {
         startDraw(e);
       }
       return;
     }
-    if (e.button !== 0) return;
 
     if (S.phase === 'ballinhand') {
       if (validCuePos(world.cue().x, world.cue().y)) {
@@ -676,11 +676,12 @@
   });
 
   window.addEventListener('mouseup', function (e) {
-    if (S.phase === 'pathdraw' && e.button === 2) {
+    if (e.button !== 0) return;
+    if (S.phase === 'pathdraw') {
       finishDraw();
       return;
     }
-    if (S.phase === 'charging' && e.button === 0) {
+    if (S.phase === 'charging') {
       S.charging = false;
       doShoot(S.power, S.aimAngle, S.spinX, S.spinY);
     }
@@ -934,7 +935,7 @@
           S.runner.list = [];
           S.runner.i = 0;
           syncPathPanel();
-          onShotEnd();          // 交回原来的回合结算
+          onShotEnd(true);      // 路径模式出手：犯规判定整段豁免
         } else {
           S.runner.list[S.runner.i].start();
           setMsg('轮到 ' + ballLabel(S.runner.list[S.runner.i].ball.num));

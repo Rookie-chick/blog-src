@@ -54,9 +54,11 @@ window.BK = window.BK || {};
     return out;
   };
 
-  // opts.cheat：外挂杆（路径绘制）出手时，豁免"击球后无球进袋且无球碰库"。
-  // 球是玩家手画路线走过去的，要他"顺手碰一下库"没有意义；
-  // 但白球落袋、空杆、先碰到别人的球这些照判不误。
+  // opts.cheat    ：外挂杆出手，豁免"击球后无球进袋且无球碰库"
+  // opts.pathMode ：这一杆是"路径绘制"走出来的 —— 整段犯规判定全部跳过。
+  //   球是玩家手画路线移动的，位置、顺序、碰不碰库都跟物理无关，
+  //   按物理那套去判他犯规没有意义。
+  //   注意：白球落袋时 onShotEnd 里仍会独立复位白球，不受这里影响。
   Rules.prototype.resolve = function (world, p, opts) {
     opts = opts || {};
     var ev = world.ev;
@@ -100,7 +102,10 @@ window.BK = window.BK || {};
     }
 
     // ---- 犯规判定 ----
-    if (ev.cueScratch) {
+    // 路径模式整段跳过（opts.pathMode）
+    if (opts.pathMode) {
+      // 什么都不判
+    } else if (ev.cueScratch) {
       res.foul = true;
       res.msg = '白球落袋';
     } else if (!fc) {
