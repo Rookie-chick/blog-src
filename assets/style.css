@@ -705,3 +705,15 @@ a.img-link:hover { text-decoration: none; }
   .arc-grid { grid-template-columns: minmax(0, 1fr); }
   .arc-box { padding: 20px 16px 18px; }
 }
+
+/* 游戏卡片：评级徽章 */
+.arc-tags { display: flex; align-items: center; gap: 6px; margin-bottom: 9px; }
+.arc-tags .arc-genre { margin-bottom: 0; }
+.arc-rate {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .5px;
+  padding: 1px 7px; border-radius: 4px;
+  color: #8a7a4a; background: #f6f1e0; border: 1px solid #e8dfc6;
+}
+.arc-rate.r-sss { color: #7a4a12; background: #ffe9c9; border-color: #ffd39a; }
+.arc-rate.r-ss { color: #6b4a8a; background: #f0e8fb; border-color: #ddcdf2; }
+.arc-rate.r-s { color: #2f6a8a; background: #e6f4fb; border-color: #c6e4f5; }

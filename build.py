@@ -989,15 +989,19 @@ def render_arcade_page(cfg, sidebar, prefix=''):
     items = cfg.get('arcade') or []
     cards = []
     for g in items:
+        rate = str(g.get('rating', '') or '')
+        rate_chip = ('<span class="arc-rate r-%s">%s</span>'
+                     % (rate.lower(), esc_text(rate))) if rate else ''
         cards.append(
             '<a class="arc-card" href="%s" target="_blank" rel="noopener">'
-            '<div class="arc-genre">%s</div>'
+            '<div class="arc-tags"><span class="arc-genre">%s</span>%s</div>'
             '<h3 class="arc-title">%s<span>%s</span></h3>'
             '<p class="arc-desc">%s</p>'
             '<div class="arc-play">开玩 &rarr;</div>'
             '</a>' % (
                 esc_attr(href(prefix, '/arcade/' + str(g['slug']) + '.html')),
                 esc_text(str(g.get('genre', ''))),
+                rate_chip,
                 esc_text(str(g.get('title', ''))),
                 esc_text(str(g.get('sub', ''))),
                 esc_text(str(g.get('desc', '')))
