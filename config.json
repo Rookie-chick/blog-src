@@ -102,6 +102,13 @@
   "arcade_source": "https://github.com/wangzifan396-wzf/mini-browser-games",
   "arcade": [
     {
+      "slug": "shan-hai",
+      "title": "山海伏魔录",
+      "sub": "万象篇",
+      "genre": "卡牌肉鸽",
+      "desc": "三位行者、三章 18 层分支路线、33 张双形态卡牌、12 件遗物。爬塔那套骨架，换了一张山海经的皮。"
+    },
+    {
       "slug": "garden-front",
       "title": "芽阵前线",
       "sub": "六境繁花",
