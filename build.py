@@ -547,6 +547,7 @@ ICON_PATHS = {
               'a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
     'close': '<path d="M18 6L6 18M6 6l12 12"/>',
     'venus': '<circle cx="12" cy="9" r="5"/><path d="M12 14v7M9 18h6"/>',
+    'rune': '<path d="M12 3l8 9-8 9-8-9z"/><path d="M4 12h16"/>',
     'game': '<rect x="2" y="7" width="20" height="10" rx="5"/>'
             '<path d="M7.5 10v4M5.5 12h4"/><circle cx="16" cy="11" r="1"/>'
             '<circle cx="18" cy="13" r="1"/>',

@@ -59,6 +59,12 @@
       "icon": "info"
     },
     {
+      "text": "符文",
+      "url": "/rune-echo/game.html",
+      "icon": "rune",
+      "blank": true
+    },
+    {
       "text": "台球",
       "url": "/billiards/index.html",
       "icon": "game",

@@ -51,6 +51,9 @@
 - **看板娘** —— 右下角的 Live2D 角色，可以摸头、拖动、换人、换装（21 套衣服）
 - **🎱 8 球台球** —— <https://rookie-chick.github.io/billiards/> ，
   纯 Canvas + 原生 JS 写的人机对战小游戏，零依赖，三档 AI 难度
+- **🔮 符文回响** —— <https://rookie-chick.github.io/rune-echo/game.html> ，
+  推箱解谜 × 实时躲尖刺 × Roguelite 抽卡的融合体。单文件、零依赖、
+  种子化程序生成，每层抽一张符文卡改写玩法
 
 ---
 
