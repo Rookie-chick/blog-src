@@ -979,6 +979,59 @@ RSS_BODY = """
 """
 
 
+def render_arcade_page(cfg, sidebar, prefix=''):
+    """
+    游戏厅：把接进来的第三方小游戏列成卡片。
+
+    这些游戏都是 MIT 协议、零依赖的单文件 HTML，直接放在 static/arcade/ 下。
+    这里只负责目录展示，不做任何包装/嵌入。
+    """
+    items = cfg.get('arcade') or []
+    cards = []
+    for g in items:
+        cards.append(
+            '<a class="arc-card" href="%s" target="_blank" rel="noopener">'
+            '<div class="arc-genre">%s</div>'
+            '<h3 class="arc-title">%s<span>%s</span></h3>'
+            '<p class="arc-desc">%s</p>'
+            '<div class="arc-play">开玩 &rarr;</div>'
+            '</a>' % (
+                esc_attr(href(prefix, '/arcade/' + str(g['slug']) + '.html')),
+                esc_text(str(g.get('genre', ''))),
+                esc_text(str(g.get('title', ''))),
+                esc_text(str(g.get('sub', ''))),
+                esc_text(str(g.get('desc', '')))
+            ))
+
+    body = ARCADE_BODY % {
+        'cards': ''.join(cards),
+        'count': len(items),
+        'source': esc_attr(cfg.get('arcade_source', '')),
+    }
+
+    return layout(cfg, '游戏厅', body, '几款能随手玩两分钟的开源小游戏', 'page',
+                  active='/arcade.html', banner_title='游戏厅',
+                  banner_sub='随手玩两分钟，不用注册、不用装东西',
+                  main=body, sidebar=sidebar, prefix=prefix)
+
+
+ARCADE_BODY = """
+<div class="arc-box">
+  <p class="arc-lead">
+    一共 %(count)d 款。全部是<b>单文件 HTML</b>、零依赖、打开就能玩，
+    存档走浏览器本地存储，不上传任何数据。
+  </p>
+
+  <div class="arc-grid">%(cards)s</div>
+
+  <p class="arc-foot">
+    这些游戏来自开源仓库
+    <a href="%(source)s" target="_blank" rel="noopener">mini-browser-games</a>，
+    MIT 协议，原作者 wangzifan396-wzf。仓库里还有一百多款，喜欢可以去翻。
+  </p>
+</div>
+"""
+
 def site_root(cfg):
     """站点根地址（带协议，不带结尾斜杠）—— 只给 RSS / sitemap / og:image 这种
     必须用绝对地址的地方用。站内链接一律走 href() 生成相对路径。"""
@@ -1159,6 +1212,7 @@ def build():
     emit('index.html', render_index(cfg, posts, cats, sidebar))
     emit('archive.html', render_archive(cfg, posts, sidebar))
     emit('rss.html', render_rss_page(cfg, posts, sidebar))
+    emit('arcade.html', render_arcade_page(cfg, sidebar))
     emit('404.html', render_404(cfg))
 
     for i, p in enumerate(posts):

@@ -59,6 +59,11 @@
       "icon": "info"
     },
     {
+      "text": "游戏厅",
+      "url": "/arcade.html",
+      "icon": "game"
+    },
+    {
       "text": "符文",
       "url": "/rune-echo/game.html",
       "icon": "rune",
@@ -93,5 +98,36 @@
       "icon": "rss"
     }
   ],
-  "source_repo": "Rookie-chick/blog-src"
+  "source_repo": "Rookie-chick/blog-src",
+  "arcade_source": "https://github.com/wangzifan396-wzf/mini-browser-games",
+  "arcade": [
+    {
+      "slug": "garden-front",
+      "title": "芽阵前线",
+      "sub": "六境繁花",
+      "genre": "塔防",
+      "desc": "24 株植物、18 关远征、三种章节首领。选卡布阵，用叶能进化，守住最后一道防线。"
+    },
+    {
+      "slug": "slingstorm",
+      "title": "弹弓风暴",
+      "sub": "风眼远征",
+      "genre": "物理弹弓",
+      "desc": "18 关物理解谜。风向、可破坏材料、四类弹丸连锁，把一颗弹丸的轨迹算明白。"
+    },
+    {
+      "slug": "neon-2048",
+      "title": "霓虹 2048",
+      "sub": "星图 V4",
+      "genre": "数字益智",
+      "desc": "规则还是那个 2048，但外面套了一张 18 节点的星图，每关都有独立的盘面规则。"
+    },
+    {
+      "slug": "abyss-sonar",
+      "title": "深渊声呐",
+      "sub": "静默航线",
+      "genre": "潜行解谜",
+      "desc": "八次潜航。关掉主动声呐靠听辨位，扫描残骸、躲猎潜艇，安静地活下去。"
+    }
+  ]
 }

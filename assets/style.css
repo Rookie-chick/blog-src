@@ -668,3 +668,40 @@ a.img-link:hover { text-decoration: none; }
   .rss-row { flex-direction: column; }
   .rss-btn { width: 100%; }
 }
+
+/* ---------- 游戏厅 ---------- */
+.arc-box { background: var(--card); border-radius: 8px; padding: 26px 28px 24px; box-shadow: var(--shadow); }
+.arc-lead { font-size: 13.5px; color: var(--text); line-height: 1.9; margin-bottom: 20px; }
+.arc-lead b { color: var(--text-strong); }
+
+.arc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+
+.arc-card {
+  display: block; text-decoration: none;
+  padding: 18px 18px 16px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  transition: border-color .18s, box-shadow .18s, transform .12s;
+}
+.arc-card:hover {
+  border-color: #b9dcf7;
+  box-shadow: 0 6px 20px rgba(81, 173, 237, .13);
+  transform: translateY(-2px);
+}
+.arc-genre {
+  display: inline-block; font-size: 11px; letter-spacing: .5px;
+  color: var(--accent); background: rgba(81, 173, 237, .1);
+  padding: 1px 8px; border-radius: 999px; margin-bottom: 9px;
+}
+.arc-title { font-size: 15.5px; font-weight: 600; color: var(--text-strong); line-height: 1.5; }
+.arc-title span { font-size: 11.5px; font-weight: 400; color: var(--muted); margin-left: 7px; }
+.arc-desc { margin-top: 7px; font-size: 12.5px; color: #7a7a7a; line-height: 1.8; }
+.arc-play { margin-top: 12px; font-size: 12.5px; color: var(--accent-dark); }
+
+.arc-foot { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border-soft); font-size: 12px; color: var(--muted); line-height: 1.9; }
+.arc-foot a { color: var(--accent-dark); }
+
+@media (max-width: 640px) {
+  .arc-grid { grid-template-columns: minmax(0, 1fr); }
+  .arc-box { padding: 20px 16px 18px; }
+}
