@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>原始成品 · 10 份可运行源码</title>
+<style>
+:root{color-scheme:light;--paper:#f5f6f3;--ink:#233e38;--sub:#64736c;--line:#dce2d8;--accent:#237866;--warm:#a45735}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);
+font-family:"Segoe UI","Microsoft YaHei",sans-serif;line-height:1.65}
+main{max-width:1000px;margin:auto;padding:38px 28px 80px}
+.kicker{font-size:11px;letter-spacing:2px;color:var(--accent);font-weight:700}
+h1{font-size:clamp(24px,3.6vw,36px);font-weight:650;letter-spacing:-.5px;margin:16px 0 12px}
+.lead{color:var(--sub);font-size:14px;max-width:760px;margin-bottom:8px}
+.note{border:1px solid #d4ddc9;background:#edf1e5;padding:13px 16px;border-radius:10px;
+font-size:13px;color:#4a5a52;margin:18px 0 24px}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);
+border-radius:12px;overflow:hidden;font-size:13.5px}
+th{text-align:left;font-size:11px;letter-spacing:1.4px;color:var(--sub);font-weight:700;
+padding:12px 14px;background:#f0f2ec;border-bottom:1px solid var(--line)}
+td{padding:11px 14px;border-bottom:1px solid #eef1ea;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+td.m{font-weight:650;white-space:nowrap}
+td.t{color:#4a5a52}
+td.s{color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums}
+td.a{white-space:nowrap;text-align:right}
+td.a a{display:inline-block;padding:4px 11px;border-radius:7px;text-decoration:none;
+font-size:12.5px;margin-left:6px;transition:.15s}
+.play{background:rgba(35,120,102,.1);color:var(--accent);border:1px solid rgba(35,120,102,.28)}
+.play:hover{background:rgba(35,120,102,.2)}
+.code{background:#fff;color:var(--warm);border:1px solid #e3d5cd}
+.code:hover{background:#faf3ee}
+footer{margin-top:26px;font-size:12.5px;color:var(--sub)}
+footer a{color:var(--accent);text-decoration:none}
+footer a:hover{text-decoration:underline}
+.note a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(35,120,102,.35)}
+.note a:hover{border-bottom-color:var(--accent)}
+@media(max-width:640px){td.t,th:nth-child(2){display:none}td.a a{padding:3px 8px;font-size:12px}}
+</style></head><body><main>
+<div class="kicker">PELICAN BENCHMARK / RAW OUTPUT</div>
+<h1>原始成品 · 10 份可运行源码</h1>
+<p class="lead">同一提示词下，10 个模型各自产出的单 HTML 文件，原样收录、未做任何修改。
+每个文件都是零依赖的，点「看动画」直接跑，点「看源码」到 GitHub 读原始代码。</p>
+<div class="note">这些是模型的原始输出，优点和缺陷都保留着——包括没做好的地方。
+逐份点评和打分在 <a href="../">完整评测报告</a> 里。</div>
+<table>
+<thead><tr><th>模型</th><th>页面标题</th><th>体积</th><th style="text-align:right">操作</th></tr></thead>
+<tbody>
+<tr><td class="m">GPT6.1sol</td><td class="t">鹈鹕，慢慢骑 · SVG 动画</td><td class="s">24 KB</td><td class="a"><a class="play" href="gpt61sol.html" target="_blank" rel="noopener">看动画</a><a class="code" href="https://github.com/Rookie-chick/Rookie-chick.github.io/blob/main/pelican/src/gpt61sol.html" target="_blank" rel="noopener">看源码</a></td></tr>
+<tr><td class="m">GPT6Astra</td><td class="t">鹈鹕的慢骑日 · Pelican on a Bicycle</td><td class="s">24 KB</td><td class="a"><a class="play" href="gpt6astra.html" target="_blank" rel="noopener">看动画</a><a class="code" href="https://github.com/Rookie-chick/Rookie-chick.github.io/blob/main/pelican/src/gpt6astra.html" target="_blank" rel="noopener">看源码</a></td></tr>
+<tr><td class="m">opus5.5</td><td class="t">鹈鹕骑自行车</td><td class="s">16 KB</td><td class="a"><a class="play" href="opus55.html" target="_blank" rel="noopener">看动画</a><a class="code" href="https://github.com/Rookie-chick/Rookie-chick.github.io/blob/main/pelican/src/opus55.html" target="_blank" rel="noopener">看源码</a></td></tr>
+<tr><td class="m">HY4preview</td><td class="t">鹈鹕骑自行车 · 落日海岸线</td><td class="s">27 KB</td><td class="a"><a class="play" href="hy4preview.html" target="_blank" rel="noopener">看动画</a><a class="code" href="https://github.com/Rookie-chick/Rookie-chick.github.io/blob/main/pelican/src/hy4preview.html" target="_blank" rel="noopener">看源码</a></td></tr>
+<tr><td class="m">GLM5.3</td><td class="t">鹈鹕骑行 · Pelican Ride</td><td class="s">16 KB</td><td class="a"><a class="play" href="glm53.html" target="_blank" rel="noopener">看动画</a><a class="code" href="https://github.com/Rookie-chick/Rookie-chick.github.io/blob/main/pelican/src/glm53.html" target="_blank" rel="noopener">看源码</a></td></tr>
+<tr><td class="m">Fable5.1</td><td class="t">鹈鹕骑自行车 · SVG 动画</td><td class="s">15 KB</td><td class="a"><a class="play" href="fable51.html" target="_blank" rel="noopener">看动画</a><a class="code" href="https://github.com/Rookie-chick/Rookie-chick.github.io/blob/main/pelican/src/fable51.html" target="_blank" rel="noopener">看源码</a></td></tr>
+<tr><td class="m">SpaceBunny</td><td class="t">鹈鹕骑自行车 · SVG 2D 动画</td><td class="s">23 KB</td><td class="a"><a class="play" href="spacebunny.html" target="_blank" rel="noopener">看动画</a><a class="code" href="https://github.com/Rookie-chick/Rookie-chick.github.io/blob/main/pelican/src/spacebunny.html" target="_blank" rel="noopener">看源码</a></td></tr>
+<tr><td class="m">DeepSeekV4.1flash</td><td class="t">鹈鹕骑自行车 · 纯 SVG 2D 动画</td><td class="s">15 KB</td><td class="a"><a class="play" href="deepseekv41flash.html" target="_blank" rel="noopener">看动画</a><a class="code" href="https://github.com/Rookie-chick/Rookie-chick.github.io/blob/main/pelican/src/deepseekv41flash.html" target="_blank" rel="noopener">看源码</a></td></tr>
+<tr><td class="m">kimi-K3</td><td class="t">鹈鹕的晨间通勤</td><td class="s">11 KB</td><td class="a"><a class="play" href="kimik3.html" target="_blank" rel="noopener">看动画</a><a class="code" href="https://github.com/Rookie-chick/Rookie-chick.github.io/blob/main/pelican/src/kimik3.html" target="_blank" rel="noopener">看源码</a></td></tr>
+<tr><td class="m">minimax</td><td class="t">鹈鹕骑行记 · Pelican on a Bike</td><td class="s">17 KB</td><td class="a"><a class="play" href="minimax.html" target="_blank" rel="noopener">看动画</a><a class="code" href="https://github.com/Rookie-chick/Rookie-chick.github.io/blob/main/pelican/src/minimax.html" target="_blank" rel="noopener">看源码</a></td></tr>
+</tbody></table>
+<footer>
+<a href="../">← 返回完整评测报告</a> &nbsp;·&nbsp; <a href="../../index.html">← 返回博客</a>
+</footer>
+</main></body></html>
